@@ -1,17 +1,17 @@
 <template>
   <div id="app">
     <img alt="Vue logo" src="./assets/logo.png">
-    <echarts msg="Welcome to Your Vue.js App"/>
+    <preview msg="Welcome to Your Vue.js App"/>
   </div>
 </template>
 
 <script>
-import echarts from './components/echarts.vue'
+import preview from './components/preview-docx.vue'
 
 export default {
   name: 'App',
   components: {
-    echarts
+    preview
   }
 }
 </script>
