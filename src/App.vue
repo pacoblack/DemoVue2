@@ -7,7 +7,7 @@
 
 <script>
 // import preview from './components/preview-docx.vue'
-import handWrite from './components/hand-write.vue'
+import handWrite from './views/FormDemo.vue'
 
 export default {
   name: 'App',
