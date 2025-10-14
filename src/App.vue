@@ -1,17 +1,18 @@
 <template>
   <div id="app">
     <img alt="Vue logo" src="./assets/logo.png">
-    <preview msg="Welcome to Your Vue.js App"/>
+    <hand-write msg="Welcome to Your Vue.js App"/>
   </div>
 </template>
 
 <script>
-import preview from './components/preview-docx.vue'
+// import preview from './components/preview-docx.vue'
+import handWrite from './components/hand-write.vue'
 
 export default {
   name: 'App',
   components: {
-    preview
+    handWrite
   }
 }
 </script>
