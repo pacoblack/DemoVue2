@@ -7,7 +7,8 @@
 
 <script>
 // import preview from './components/preview-docx.vue'
-import handWrite from './views/FormDemo.vue'
+import handWrite from './views/pie.vue'
+// import handWrite from './views/FlowChart.vue'
 
 export default {
   name: 'App',
