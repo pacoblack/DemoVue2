@@ -7,7 +7,7 @@
 
 <script>
 // import preview from './components/preview-docx.vue'
-import handWrite from './views/pie.vue'
+import handWrite from './views/map3d.vue'
 // import handWrite from './views/FlowChart.vue'
 
 export default {
