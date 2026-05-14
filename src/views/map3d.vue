@@ -1,10 +1,9 @@
-
 <template>
   <div class="topology-container">
     <!-- 全局唯一的 G6 画布挂载点 -->
     <div class="canvas-wrapper" ref="canvasRef"></div>
 
-    <!-- Vue 原生 Tooltip 浮层 -->
+    <!-- Vue 原生自定义 Tooltip 浮层，像素级紧贴鼠标，零延迟不漂移 -->
     <div 
       v-show="tooltip.show" 
       class="custom-vue-tooltip"
@@ -28,8 +27,11 @@ export default {
     };
   },
   mounted() {
+    // 1. 优先注册 100% 兼容 3.x 的纯原生 Canvas 复合节点形状
     this.registerPureCanvasNode();
+    // 2. 注册高精度全景“中轴对齐”正交阶梯折线
     this.registerCustomOrthoEdge();
+    // 3. 初始化画布
     this.initTopology();
   },
   beforeDestroy() {
@@ -39,7 +41,8 @@ export default {
   },
   methods: {
     /**
-     * 1. 注册纯 Canvas 节点：二级青蓝色块，三级长条竖排文本
+     * 🌟【最核心改动点】：注册纯 Canvas 复合图形节点
+     * 动态测算子节点数量，完美实现“1个垂直居中对齐，多个横向并排直角分叉”的终极视觉效果！
      */
     registerPureCanvasNode() {
       G6.registerNode('combo-canvas-column-node', {
@@ -47,22 +50,24 @@ export default {
           const leaves = cfg.leaves || [];
           const leafCount = leaves.length;
 
+          // 1. 绘制二级中字头企业的核心青蓝色底框矩形 (110px * 40px)
           const parentRect = group.addShape('rect', {
             attrs: {
-              x: -55,
+              x: -55, // 中心点对称 (110/2)
               y: 0,
               width: 110,
               height: 40,
-              fill: '#5bc0be', 
+              fill: '#5bc0be', // 100% 还原截图青蓝色
               radius: 4,
             },
             name: 'parent-rect-shape'
           });
 
+          // 2. 二级节点核心公司名称白字文本
           group.addShape('text', {
             attrs: {
               x: 0,
-              y: 20,
+              y: 20, // 垂直居中
               text: cfg.label,
               fontSize: 12,
               fontWeight: 'bold',
@@ -76,51 +81,78 @@ export default {
 
           if (leafCount === 0) return parentRect;
 
-          const axisLineHeight = 30 + leafCount * 210 - 20;
+          // 🌟【目标图新特征一】：绘制从二级卡片底部正中央垂直引出的短主干轴线
+          const branchLineY = 40 + 20; // 在二级卡片下方 20px 高度作为水平分叉平面
           group.addShape('path', {
             attrs: {
               path: [
                 ['M', 0, 40], 
-                ['L', 0, 40 + axisLineHeight]
+                ['L', 0, branchLineY]
               ],
               stroke: '#cbd5e1',
               lineWidth: 1.5
             },
-            name: 'axis-main-line'
+            name: 'axis-main-stem-line'
           });
 
-          leaves.forEach((leafName, index) => {
-            const startY = 40 + 30 + index * 210;
+          // 🌟【目标图新特征二】：根据标段的实际总数，动态建立横向平铺的错位网格跨度
+          // 两个相邻并排的长条标段之间横向空开 10px 的安全呼吸留白空隙
+          const leafCardW = 46;
+          const leafSpacingX = 56; // 46px 宽度 + 10px 留白
+          const startLeafX = -((leafCount - 1) * leafSpacingX) / 2;
 
+          // 3. 循环动态排版绘制三级长条标段
+          leaves.forEach((leafName, index) => {
+            // 依据动态槽位公式，算出每个卡片绝对不会发生重叠的精准 X 轴中心投影坐标
+            const currentLeafX = startLeafX + index * leafSpacingX;
+            const startY = branchLineY + 15; // 长条卡片顶部固定 Y 轴高度为 75px
+
+            // 🌟【目标图新特征三】：绘制倒 T 型直角分叉的接入线条
+            // 线条从半空的分叉点 (0, branchLineY) 出发，水平拉展到当前卡片中轴，再垂直接入卡片顶部中心
+            group.addShape('path', {
+              attrs: {
+                path: [
+                  ['M', 0, branchLineY],
+                  ['L', currentLeafX, branchLineY],
+                  ['L', currentLeafX, startY]
+                ],
+                stroke: '#cbd5e1',
+                lineWidth: 1.5
+              },
+              name: 'axis-sub-branch-line'
+            });
+
+            // 4. 绘制三级长条标段的白底青边框矩形 (46px * 190px)
             group.addShape('rect', {
               attrs: {
-                x: -23,
+                x: currentLeafX - leafCardW / 2, // 动态对称居中
                 y: startY,
-                width: 46,
+                width: leafCardW,
                 height: 190,
                 fill: '#ffffff',
                 stroke: '#5bc0be',
                 lineWidth: 1.5,
                 radius: 4,
-                rawText: leafName,
+                rawText: leafName, // 备份长全称对接 Tooltip
                 isLeafBlock: true
               },
               name: 'leaf-rect-shape'
             });
 
+            // 5. 将文本使用换行符 \n 强行垂直拆分，达成文字从上往下、绝对居中的高级竖排呈现
             const verticalText = leafName.split('').join('\n');
             group.addShape('text', {
               attrs: {
-                x: 0,
-                y: startY + 95,
+                x: currentLeafX, 
+                y: startY + 95, // 190px高度垂直中心对齐
                 text: verticalText,
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 500,
-                fill: '#3a7d7b',
+                fill: '#3a7d7b', // 深青色字体
                 textAlign: 'center',
                 textBaseline: 'middle',
                 lineHeight: 14,
-                letterSpacing: 3,
+                letterSpacing: 2,
                 fontFamily: 'sans-serif',
                 pointerEvents: 'none'
               },
@@ -134,28 +166,26 @@ export default {
     },
 
     /**
-     * 2. 注册自定义分流折线
-     * 指挥部到半空隐形点只拉一根唯一的垂直线；从隐形点出发的线再统一在水平方向上分串展开。
+     * 注册高精度全景“中轴锁死”正交阶梯折线（一级连向二级）
      */
     registerCustomOrthoEdge() {
       G6.registerEdge('custom-ortho-polyline', {
         draw(cfg, group) {
           const startPoint = cfg.startPoint;
           const endPoint = cfg.endPoint;
+          const absoluteCenterX = 0; 
 
           let path = [];
           if (cfg.source === 'root' && cfg.target === 'hub') {
-            // A. 主干线：从指挥部底部正中心垂直拉到半空分流点
             path = [
-              ['M', startPoint.x, startPoint.y],
-              ['L', endPoint.x, endPoint.y]
+              ['M', absoluteCenterX, startPoint.y],
+              ['L', absoluteCenterX, endPoint.y]
             ];
           } else {
-            // B. 分支线：从半空的隐形点出发，先向左向右拉平，然后再垂直直角接入下级公司
             path = [
               ['M', startPoint.x, startPoint.y],
-              ['L', endPoint.x, startPoint.y],   // 在半空中平铺横展开
-              ['L', endPoint.x, endPoint.y]      // 垂直接入公司顶部中心
+              ['L', endPoint.x, startPoint.y],   
+              ['L', endPoint.x, endPoint.y]      
             ];
           }
 
@@ -173,8 +203,9 @@ export default {
       });
     },
 
+
     /**
-     * 3. 组装数据源
+     * 组装您的真实完整九个公司分支数据（根据目标图动态调整间距）
      */
     generateLayoutData() {
       const config = [
@@ -190,38 +221,22 @@ export default {
       ];
 
       const nodes = [
-        // 🌟【高精度居中校准点】：显式改写 style.x 和 style.y，减去其自身宽高的一半
-        // 这会强行把一级的“原点参考参考系”由左上角修正为正几何中心，从而令主干线零误差精准从其中轴线垂下
         { 
           id: 'root', 
           label: '指挥部', 
           rawLabel: '指挥部',
           x: 0, 
-          y: -240, 
+          y: -160, 
           type: 'rect', 
           size: [160, 50],
-          anchorPoints: [[0.5, 1]], // 强制锁死在指挥部底边中点发射连线
-          style: { 
-            x: -80, // 宽160的一半
-            y: -25, // 高50的一半
-            fill: '#264653', 
-            stroke: '#1a202c', 
-            lineWidth: 1, 
-            radius: 4 
-          },
-          labelCfg: { 
-            style: { 
-              fill: '#ffffff', 
-              fontSize: 13, 
-              fontWeight: 'bold' 
-            } 
-          }
+          anchorPoints: [[0.5, 1]], 
+          style: { x: -80, y: -25, fill: '#264653', stroke: '#1a202c', lineWidth: 1, radius: 4 },
+          labelCfg: { style: { fill: '#ffffff', fontSize: 13, fontWeight: 'bold' } }
         },
-        // 在半空中埋入一个隐形的小圆点作为连线集线器
         {
           id: 'hub',
           x: 0,
-          y: -140,
+          y: -125,
           type: 'circle',
           size: 1,
           style: { opacity: 0, fill: 'none', stroke: 'none' } 
@@ -229,11 +244,11 @@ export default {
       ];
       const edges = [];
 
-      // 指挥部只连线向这个半空的隐形桩点
       edges.push({ source: 'root', target: 'hub' });
 
       const totalCount = config.length;
-      const spacingX = 145; 
+      // 🌟【高精度视觉对齐】：为了容纳并排的多个标段，将大列之间的横向安全间距调整为 165px，防止列与列之间发生任何擦碰
+      const spacingX = 165; 
       const startX = -((totalCount - 1) * spacingX) / 2;
 
       config.forEach((parent, index) => {
@@ -255,16 +270,21 @@ export default {
           anchorPoints: [[0.5, 0]] 
         });
 
-        // 所有的二级公司，全部由半空中这个隐形桩点横向发散连过去
         edges.push({ source: 'hub', target: parent.id });
       });
 
       return { nodes, edges };
     },
 
+    /**
+     * 【修改部分一】：初始化画布体系（废除手动横向坐标相加，改用官方安全的 fitCenter 居中）
+     */
+    /**
+     * 【修改部分一】：初始化画布体系（废除手动横向坐标相加，改用官方安全的 fitCenter 居中）
+     */
     initTopology() {
       const container = this.$refs.canvasRef;
-      if (!container) return;
+      if (!container || container.clientWidth === 0) return;
 
       const width = container.clientWidth;
       const height = container.clientHeight;
@@ -275,9 +295,9 @@ export default {
         height,
         renderer: 'canvas', 
         fitView: true,
-        fitViewPadding: 50,
+        fitViewPadding: 60, // 增大留白边距，让画面在画布中更显舒展大方
         modes: {
-          default: ['drag-canvas', 'zoom-canvas'] 
+          default: ['drag-canvas',] 
         },
         defaultEdge: {
           type: 'custom-ortho-polyline'
@@ -286,15 +306,40 @@ export default {
 
       const data = this.generateLayoutData();
       
-      data.nodes.forEach(node => {
-        node.x = node.x + width / 2;
-        node.y = node.y + height / 2;
-      });
-
+      // 🌟【最核心修复点】：完全删除原先的 node.x = node.x + width / 2 逻辑！
+      // 保持数据最清澈的 0 点对称状态直接送给 Canvas 矩阵
       this.graphInstance.data(data);
       this.graphInstance.render();
 
+      // 🌟【最核心修复点】：调用 G6 3.x 标准的视口自适应组合拳，强制让图形的数学几何中心和屏幕的物理中心点像素级重合
+      this.graphInstance.fitCenter();
+      this.graphInstance.fitView(60);
+
       this.bindCustomTooltipEvents();
+    },
+
+    /**
+     * 【修改部分二】：智能数据刷新与重绘引擎（同步更正为标准 changeData 数据流）
+     */
+    renderOrRefreshChart() {
+      const container = this.$refs.canvasRef;
+      if (!container) return;
+
+      if (!this.graphInstance) {
+        // 如果实例还不存在，触发初始化
+        this.initTopology();
+      } else {
+        if (container.clientWidth === 0) return;
+
+        const data = this.generateLayoutData();
+
+        // 🌟【最核心修复点】：同样删除此处的 node.x 平移，交由 G6 闭环原生的数据流更新
+        this.graphInstance.changeData(data); 
+        
+        // 刷新完毕后，重新命令 Canvas 引擎执行全局视角高精度居中
+        this.graphInstance.fitCenter();
+        this.graphInstance.fitView(60);
+      }
     },
 
     bindCustomTooltipEvents() {
