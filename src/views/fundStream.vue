@@ -127,20 +127,15 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
     // 3条：-8,  0, +8
     // 4条：-12, -4, +4, +12
     // 5条：-12, -6,  0, +6, +12 （完美在中轴线周围向外对称绽放）
-        const offsetFactor = sourceIndex - (sourceTotal - 1) / 2
+    const offsetFactor = sourceIndex - (sourceTotal - 1) / 2
     let currentOffset = offsetFactor * trackGap
 
     const targetNode = this.NODE_DATA.find(node => node.id === targetId)
     const sourceNode = this.NODE_DATA.find(node => node.id === sourceId)
-
-    let finalOffset = currentOffset 
-
-    // 如果连线是从 top/bottom 发出，并且我们发现目标节点长在起点的下方（比如 21 号线）
-    // 此时它向下拐弯会使轨道内外侧颠倒，我们必须在这里单独把它的符号取反，从而完美解开下方的交叉！
-    if ((sourcePort === 'top' || sourcePort === 'bottom') && sourceNode && targetNode && targetNode.y < sourceNode.y) {
-      finalOffset = currentOffset * -1
+    let bottomTarget = 1
+    if ((sourcePort === 'top' || sourcePort === 'bottom') && sourceNode && targetNode && targetNode.y > sourceNode.y && level != 1) {
+      bottomTarget = -1
     }
-
     if (sourcePort === 'top' || sourcePort === 'bottom') {
       // 上下出线：在 X 轴上横向对称扩充
       finalSource = { 
@@ -150,7 +145,7 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
           name: 'nodeCenter', 
           args: { 
             // 💡 一级到二级的起始节点没有偏移，其余使用经过方向修正后的 finalOffset
-            dx: level == 1 ? 0 : finalOffset 
+            dx: level == 1 ? 0 : currentOffset 
           } 
         } 
       }
@@ -162,7 +157,7 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
         anchor: { 
           name: 'nodeCenter', 
           args: { 
-            dy: finalOffset 
+            dy: currentOffset 
           } 
         } 
       }
@@ -181,7 +176,7 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
         anchor: { 
           name: 'nodeCenter', 
           args: { 
-            dx: finalOffset 
+            dx: currentOffset 
           } 
         }, 
         connectionPoint: {
@@ -198,7 +193,7 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
         anchor: { 
           name: 'nodeCenter', 
           args: { 
-            dy: finalOffset 
+            dy: currentOffset * bottomTarget
           } 
         },
         connectionPoint: {
