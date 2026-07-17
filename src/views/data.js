@@ -425,7 +425,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
           color: lineColor,
           labelText: sIdx === 0 ? inflowAmount : '', // 仅在第一条主线上挂载金额
           sourceTotal,                  // 平行线总数
-          level: item.level,
+          level: parentNode.level,
           sourceIndex: sIdx             // 当前线颜色/来源索引位置
         });
       });
