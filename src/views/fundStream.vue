@@ -114,13 +114,13 @@ export default {
 drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPos, sourceTotal = 1, sourceIndex = 0,level = -1 }) {
   let finalSource = { cell: sourceId, port: sourcePort }
   let finalTarget = { cell: targetId, port: targetPort }
-
+  let forkVertices = null
   // 💡 只有当多轨平行线总数大于 1 时，才触发动态轨道扩散偏移逻辑
   if (sourceTotal > 1) {
     // 💡 动态间距策略：线越多，间距稍微收紧（5条线用6px，3-4条用8px，2条用10px），防止线束过宽超出卡片边缘
-    let trackGap = 8
-    if (sourceTotal >= 5) trackGap = 6
-    if (sourceTotal === 2) trackGap = 10
+    let trackGap = 4
+    // if (sourceTotal >= 5) trackGap = 6
+    // if (sourceTotal === 2) trackGap = 10
 
     // 💡 核心数学公式：精准计算每条线相对于【中间轴线 0 点】的对称扩散偏移量
     // 2条：-5, +5
@@ -205,6 +205,25 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
       }
     }
 
+    // ==================== ✨ 需要加入的修改部分 1：计算 0.3 处的分叉转折点 ====================
+    if (level === 4 && sourceNode && targetNode) {
+      // 1. 计算 4 级卡片右边缘到 5 级卡片左边缘之间的 X 轴物理跨度
+      const startX = sourceNode.x + sourceNode.width;
+      const endX = targetNode.x;
+      const distanceX = endX - startX;
+      
+      // 2. 根据 0.3 的比例，精确算出空中垂直分叉轴的绝对 X 坐标
+      const forkX = startX + (distanceX * 0.3);
+      
+      // 3. 算出该线条从 4 级节点右侧发射出来的绝对 Y 坐标（融入您的 currentOffset 偏置）
+      const sourceY = sourceNode.y + sourceNode.height / 2 + currentOffset;
+
+      // 4. 将计算好的控制顶点临时存下来（注意：您需要在 drawEdge 最顶层声明让这个变量）
+      forkVertices = [{ x: Math.round(forkX), y: Math.round(sourceY) }];
+      
+    }
+    // =======================================================================================
+
   }
 
   const labels = []
@@ -241,7 +260,12 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
     },
     labels: labels,
   }
-
+  if (level ==4) {
+    console.log("####### leve4 edge", edgeConfig)
+  }
+if (forkVertices) {
+    edgeConfig.vertices = forkVertices;
+  }
   this.graph.addEdge(edgeConfig)
 }
 ,

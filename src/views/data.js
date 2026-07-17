@@ -43,8 +43,8 @@ export const response = [
     { "id": "line_21", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
 
     // ---- 第四层：建设单位 ----
-    { "id": "bj_8", "name": "中建八局", "level": 4, "source": ["zxj"], "parent": "line_cm", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
-    { "id": "jc_group", "name": "基础工程集团", "level": 4, "source": ["zxj"], "parent": "line_cm", "inflowAmount": "1000.00万元" },
+    { "id": "bj_8", "name": "中建八局", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_cm", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
+    { "id": "jc_group", "name": "基础工程集团", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_cm", "inflowAmount": "1000.00万元" },
     { "id": "bj_3", "name": "中建三局", "level": 4, "source": ["zxj"], "parent": "line_21", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
 
     // ---- 第五层：末端叶子节点 ----
@@ -201,7 +201,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
     } else if (item.level === 4) {
       width = 150; height = item.retainedAmount ? 54 : 44; type = 'target-card';
     } else if (item.level === 5) {
-      width = 100; height = 20;
+      width = 40; height = 20;
     }
 
     nodeMap[item.id] = {
@@ -349,10 +349,10 @@ export function transformListToAlignedTopology(response, containerDOM, options =
       const sourcePort = l3Index === 0 ? 'top' : 'bottom';
 
       // 核心研判：如果父级节点（核心主体）拥有多源资金，且当前是主干的第一条线路，触发多平行线生成
-      if (parentNode && parentNode.source && parentNode.source.length > 1) {
-        const sourceTotal = parentNode.source.length;
+      if (item.source && item.source.length > 1) {
+        const sourceTotal = item.source.length;
 
-        parentNode.source.forEach((src, sIdx) => {
+        item.source.forEach((src, sIdx) => {
           const lineColor = sourceColorPalette[sIdx] || '#ff9900';
 
           EDGE_DATA.push({
@@ -397,19 +397,37 @@ export function transformListToAlignedTopology(response, containerDOM, options =
         sourcePort = isFirstChild ? 'right' : 'bottom';
       }
 
-      let lineColor = sourceColorPalette[0]; 
-      if (item.level === 5) lineColor = '#ffb3a7'; 
+      // let lineColor = sourceColorPalette[0]; 
+      // if (item.level === 5) lineColor = '#ffb3a7'; 
       
-      EDGE_DATA.push({
-        sourceId: parentId,
-        sourcePort,
-        targetId: currentId,
-        targetPort,
-        color: lineColor,
-        labelText: inflowAmount,
-        sourceTotal: 1,
-        sourceIndex: 0,
-        ...(item.level === 4 ? { labelPos: 0.35 } : {})
+      // EDGE_DATA.push({
+      //   sourceId: parentId,
+      //   sourcePort,
+      //   targetId: currentId,
+      //   targetPort,
+      //   color: lineColor,
+      //   labelText: inflowAmount,
+      //   sourceTotal: 1,
+      //   sourceIndex: 0,
+      //   ...(item.level === 4 ? { labelPos: 0.35 } : {})
+      // });
+
+      const sourceTotal = item.source.length;
+
+      item.source.forEach((src, sIdx) => {
+        const lineColor = sourceColorPalette[sIdx] || '#ff9900';
+
+        EDGE_DATA.push({
+          sourceId: parentId,
+          sourcePort,
+          targetId: currentId,
+          targetPort,            // 【重要修改】：不再扩展桩位名，统一指向左连接桩
+          color: lineColor,
+          labelText: sIdx === 0 ? inflowAmount : '', // 仅在第一条主线上挂载金额
+          sourceTotal,                  // 平行线总数
+          level: item.level,
+          sourceIndex: sIdx             // 当前线颜色/来源索引位置
+        });
       });
     }
   });
