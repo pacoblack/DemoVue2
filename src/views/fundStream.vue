@@ -109,29 +109,45 @@ export default {
         attrs: { text: { text: node.label, fill: '#333', fontSize: 12, textAnchor: 'start' } }
       }
     },
+    // 在你的类或组建中定义一个创建隐形节点的方法
+    createForkNode(id, x, y) {
+      let forkNode = this.graph.getCellById(id);
+      if (!forkNode) {
+        forkNode = this.graph.addNode({
+          id: id,
+          x: Math.round(x),
+          y: Math.round(y),
+          width: 1,
+          height: 1,
+          attrs: {
+            body: {
+              fill: 'none',
+              stroke: 'none', // 隐形，不可见
+            },
+          },
+        });
+      }
+      return forkNode;
+    },
 
     /// 3. 精简、标准的连接桩画线函数（优化版：100% 保持原风格，支持 2-5 条线由中间向周围完美对称扩散）
-drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPos, sourceTotal = 1, sourceIndex = 0,level = -1 }) {
+drawEdge(options) {
+  const { sourceId, sourcePort, targetId, targetPort, color, labelText, labelPos, sourceTotal = 1, sourceIndex = 0,level = -1 } = options
   let finalSource = { cell: sourceId, port: sourcePort }
   let finalTarget = { cell: targetId, port: targetPort }
   let forkVertices = null
   // 💡 只有当多轨平行线总数大于 1 时，才触发动态轨道扩散偏移逻辑
-  if (sourceTotal > 1) {
     // 💡 动态间距策略：线越多，间距稍微收紧（5条线用6px，3-4条用8px，2条用10px），防止线束过宽超出卡片边缘
     let trackGap = 4
     // if (sourceTotal >= 5) trackGap = 6
     // if (sourceTotal === 2) trackGap = 10
 
-    // 💡 核心数学公式：精准计算每条线相对于【中间轴线 0 点】的对称扩散偏移量
-    // 2条：-5, +5
-    // 3条：-8,  0, +8
-    // 4条：-12, -4, +4, +12
-    // 5条：-12, -6,  0, +6, +12 （完美在中轴线周围向外对称绽放）
     const offsetFactor = sourceIndex - (sourceTotal - 1) / 2
     let currentOffset = offsetFactor * trackGap
 
     const targetNode = this.NODE_DATA.find(node => node.id === targetId)
     const sourceNode = this.NODE_DATA.find(node => node.id === sourceId)
+
     let bottomTarget = 1
     if ((sourcePort === 'top' || sourcePort === 'bottom') && sourceNode && targetNode && targetNode.y > sourceNode.y && level != 1) {
       bottomTarget = -1
@@ -205,26 +221,23 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
       }
     }
 
-    // ==================== ✨ 需要加入的修改部分 1：计算 0.3 处的分叉转折点 ====================
-    if (level === 4 && sourceNode && targetNode) {
-      // 1. 计算 4 级卡片右边缘到 5 级卡片左边缘之间的 X 轴物理跨度
+    // ==================== ✨ 1.32版本终极订正：两步法强控 0.3 处垂直折弯 ====================
+    if (level == 4 && sourceNode && targetNode) {
       const startX = sourceNode.x + sourceNode.width;
       const endX = targetNode.x;
       const distanceX = endX - startX;
       
-      // 2. 根据 0.3 的比例，精确算出空中垂直分叉轴的绝对 X 坐标
       const forkX = startX + (distanceX * 0.3);
       
-      // 3. 算出该线条从 4 级节点右侧发射出来的绝对 Y 坐标（融入您的 currentOffset 偏置）
-      const sourceY = sourceNode.y + sourceNode.height / 2 + currentOffset;
+      const sourceY = sourceNode.y + sourceNode.height / 2;
+      const targetY = targetNode.y + targetNode.height / 2 + currentOffset;
 
-      // 4. 将计算好的控制顶点临时存下来（注意：您需要在 drawEdge 最顶层声明让这个变量）
-      forkVertices = [{ x: Math.round(forkX), y: Math.round(sourceY) }];
-      
+      forkVertices = [
+        { x: Math.round(forkX), y: Math.round(sourceY) },
+        { x: Math.round(forkX), y: Math.round(targetY) }
+      ];
     }
     // =======================================================================================
-
-  }
 
   const labels = []
   if (labelText){
@@ -241,7 +254,7 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
     source: finalSource,
     target: finalTarget,
     router: {
-      name: 'manhattan',
+      name: forkVertices ? 'orth' : 'manhattan',
       args: {
         step: 10,
         padding: 24, 
@@ -260,13 +273,13 @@ drawEdge({ sourceId, sourcePort, targetId, targetPort, color, labelText, labelPo
     },
     labels: labels,
   }
-  if (level ==4) {
-    console.log("####### leve4 edge", edgeConfig)
+  const addedEdge = this.graph.addEdge(edgeConfig)
+
+  // 2. 判定如果起点的自定义属性里存有 0.3 处的转折顶点，立刻强行注入
+  if (addedEdge && forkVertices) {
+    // 调用 1.x 版本最稳妥的动态顶点设置 API，强行掰正曼哈顿路由的分叉位置！
+    addedEdge.setVertices(forkVertices) 
   }
-if (forkVertices) {
-    edgeConfig.vertices = forkVertices;
-  }
-  this.graph.addEdge(edgeConfig)
 }
 ,
 

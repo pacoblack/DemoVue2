@@ -48,11 +48,11 @@ export const response = [
     { "id": "bj_3", "name": "中建三局", "level": 4, "source": ["zxj"], "parent": "line_21", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
 
     // ---- 第五层：末端叶子节点 ----
-    { "id": "y_zs", "name": "八局装饰", "level": 5, "source": ["zxj"], "parent": "bj_8", "inflowAmount": "100.00万元" },
-    { "id": "y_jd1", "name": "上安机电", "level": 5, "source": ["zxj"], "parent": "bj_8", "inflowAmount": "100.00万元" },
-    { "id": "y_lw", "name": "武东建筑劳务", "level": 5, "source": ["zxj"], "parent": "bj_8", "inflowAmount": "100.00万元" },
+    { "id": "y_zs", "name": "八局装饰", "level": 5, "source": ["zxj", 'czbk'], "parent": "bj_8", "inflowAmount": "100.00万元" },
+    { "id": "y_jd1", "name": "上安机电", "level": 5, "source": ["zxj", 'czbk'], "parent": "bj_8", "inflowAmount": "100.00万元" },
+    { "id": "y_lw", "name": "武东建筑劳务", "level": 5, "source": ["zxj", 'czbk'], "parent": "bj_8", "inflowAmount": "100.00万元" },
     { "id": "y_bl", "name": "南玻玻璃", "level": 5, "source": ["zxj"], "parent": "bj_8", "inflowAmount": "100.00万元" },
-    { "id": "y_more1", "name": "......", "level": 5, "source": ["zxj"], "parent": "bj_8", "inflowAmount": "100.00万元" },
+    { "id": "y_more1", "name": "......", "level": 5, "source": ["zxj", 'czbk'], "parent": "bj_8", "inflowAmount": "100.00万元" },
     
     { "id": "y_jd2", "name": "上安机电", "level": 5, "source": ["zxj"], "parent": "jc_group", "inflowAmount": "100.00万元" },
     
@@ -299,7 +299,9 @@ export function transformListToAlignedTopology(response, containerDOM, options =
       width: cached.width,
       height: cached.height,
       label: item.name,
-      ports: defaultPorts 
+      ports: defaultPorts ,
+      parent: item.parent,
+      level: item.level
     };
 
     if (cached.type) res.type = cached.type;
@@ -309,8 +311,8 @@ export function transformListToAlignedTopology(response, containerDOM, options =
   });
 
   // 2. 纯动态提取流式链接关系，生成带有精准引出/引入桩配置的 EDGE_DATA
-  const EDGE_DATA = [];
-
+  let EDGE_DATA = [];
+  const unionMap = new Map()
   response.forEach(item => {
     const currentId = item.id;
 
@@ -396,21 +398,18 @@ export function transformListToAlignedTopology(response, containerDOM, options =
         const isFirstChild = parentNode?.children[0]?.id === currentId;
         sourcePort = isFirstChild ? 'right' : 'bottom';
       }
-
-      // let lineColor = sourceColorPalette[0]; 
-      // if (item.level === 5) lineColor = '#ffb3a7'; 
-      
-      // EDGE_DATA.push({
-      //   sourceId: parentId,
-      //   sourcePort,
-      //   targetId: currentId,
-      //   targetPort,
-      //   color: lineColor,
-      //   labelText: inflowAmount,
-      //   sourceTotal: 1,
-      //   sourceIndex: 0,
-      //   ...(item.level === 4 ? { labelPos: 0.35 } : {})
-      // });
+      if(item.level == 5){
+        const groupKey = `${item.parent}_${item.level}`;
+        
+        if (!unionMap.has(groupKey)) {
+          unionMap.set(groupKey, new Set());
+        }
+        
+        const currentSet = unionMap.get(groupKey);
+        item.source.forEach(src => currentSet.add(src));
+        console.log("####### unionMap", unionMap)
+        unionMap.set(groupKey, currentSet)
+      }
 
       const sourceTotal = item.source.length;
 
@@ -431,7 +430,15 @@ export function transformListToAlignedTopology(response, containerDOM, options =
       });
     }
   });
-  console.log('########', EDGE_DATA)
+  EDGE_DATA = EDGE_DATA.map(item =>{
+    const groupKey = `${item.sourceId}_${item.level+1}`;
+    const setArray = Array.from(unionMap.get(groupKey) || []);
+
+    return {
+      ...item,
+      set: setArray
+    };
+  })
   return { NODE_DATA, EDGE_DATA };
 }
 
