@@ -46,6 +46,7 @@ export default {
         panning: true,
         mousewheel: false,
         zIndex: true, 
+        sorting: 'exact', 
       })
     },
 
@@ -263,7 +264,7 @@ drawEdge(options) {
     }
     labels.push({
       attrs: {
-        text: { text: labelText, fontSize: 10, fill: '#64748b' },
+        text: { text: labelText, fontSize: 15, fill: '#64748b' },
         rect: { fill: '#ffffff', rx: 3, ry: 3, stroke: '#e2e8f0', strokeWidth: 1 },
       },
       position: labelPositionConfig,
@@ -294,6 +295,13 @@ drawEdge(options) {
     labels: labels,
   }
   const addedEdge = this.graph.addEdge(edgeConfig)
+  if (addedEdge) {
+    if (labelText) {
+      addedEdge.setZIndex(100 - sourceIndex) 
+    } else {
+      addedEdge.setZIndex(1)
+    }
+  }
 
   // 2. 判定如果起点的自定义属性里存有 0.3 处的转折顶点，立刻强行注入
   if (addedEdge && forkVertices) {
