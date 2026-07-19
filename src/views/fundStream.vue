@@ -132,7 +132,7 @@ export default {
 
     /// 3. 精简、标准的连接桩画线函数（优化版：100% 保持原风格，支持 2-5 条线由中间向周围完美对称扩散）
 drawEdge(options) {
-  const { sourceId, sourcePort, targetId, targetPort, color, labelText, labelPos, sourceTotal = 1, sourceIndex = 0,level = -1 } = options
+  const { sourceId, sourcePort, targetId, targetPort, color, labelText, labelPos, sourceTotal = 1, sourceIndex = 0,level = -1, colorIndex, colorTotal} = options
   let finalSource = { cell: sourceId, port: sourcePort }
   let finalTarget = { cell: targetId, port: targetPort }
   let forkVertices = null
@@ -141,9 +141,14 @@ drawEdge(options) {
     let trackGap = 4
     // if (sourceTotal >= 5) trackGap = 6
     // if (sourceTotal === 2) trackGap = 10
-
-    const offsetFactor = sourceIndex - (sourceTotal - 1) / 2
-    let currentOffset = offsetFactor * trackGap
+    let currentOffset = 0
+    if(colorTotal > 0) {
+      const offsetFactor = colorIndex - (colorTotal - 1) / 2
+      currentOffset = offsetFactor * trackGap
+    } else {
+      const offsetFactor = sourceIndex - (sourceTotal - 1) / 2
+      currentOffset = offsetFactor * trackGap
+    }
 
     const targetNode = this.NODE_DATA.find(node => node.id === targetId)
     const sourceNode = this.NODE_DATA.find(node => node.id === sourceId)
@@ -241,12 +246,27 @@ drawEdge(options) {
 
   const labels = []
   if (labelText){
+    let labelPositionConfig = labelPos || 0.65;
+
+    if (level === 3 && sourceNode && targetNode) {
+
+      labelPositionConfig = {
+        distance: -85, // 负数代表从【终点】向【起点】倒数 45 像素。可根据需要微调（如 -50, -40）
+      };
+    }
+
+    if (level === 4 && sourceNode && targetNode) {
+
+      labelPositionConfig = {
+        distance: -45, // 负数代表从【终点】向【起点】倒数 45 像素。可根据需要微调（如 -50, -40）
+      };
+    }
     labels.push({
       attrs: {
         text: { text: labelText, fontSize: 10, fill: '#64748b' },
         rect: { fill: '#ffffff', rx: 3, ry: 3, stroke: '#e2e8f0', strokeWidth: 1 },
       },
-      position: labelPos || 0.45,
+      position: labelPositionConfig,
     })
   }
   
@@ -280,10 +300,7 @@ drawEdge(options) {
     // 调用 1.x 版本最稳妥的动态顶点设置 API，强行掰正曼哈顿路由的分叉位置！
     addedEdge.setVertices(forkVertices) 
   }
-}
-,
-
-
+},
     renderChart() {
       if (!this.graph) return
       const { NODE_DATA, EDGE_DATA } = transformListToAlignedTopology(response, this.$refs.container)

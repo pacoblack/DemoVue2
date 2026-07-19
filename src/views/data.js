@@ -63,7 +63,7 @@ export const response = [
 ];
 
 
-export const NODE_DATA = [
+export const NODE_DATA1 = [
   // ---- 第一列：资金来源 ----
   { id: 'zxj', x: 80, y: 150, width: 110, height: 44, label: '专项债', type: 'source-orange', ports: defaultPorts },
   { id: 'czbk', x: 80, y: 350, width: 110, height: 44, label: '财政拨款', type: 'source-purple', ports: defaultPorts },
@@ -98,7 +98,7 @@ export const NODE_DATA = [
   { id: 'y_g', x: 950, y: 445, width: 100, height: 20, label: '农民工', ports: defaultPorts }
 ];
 
-export const EDGE_DATA = [
+export const EDGE_DATA1 = [
   // 1. 专项债 -> 地铁：强制从【底连接桩】出发，进入地铁【左连接桩】
   { sourceId: 'zxj', sourcePort: 'bottom', targetId: 'st_subway', targetPort: 'left-1', color: '#ff9900', labelText: '800.00万元' },
   // 2. 财政拨款 -> 地铁：强制从【顶连接桩】出发，进入地铁【左连接桩】
@@ -398,18 +398,16 @@ export function transformListToAlignedTopology(response, containerDOM, options =
         const isFirstChild = parentNode?.children[0]?.id === currentId;
         sourcePort = isFirstChild ? 'right' : 'bottom';
       }
-      if(item.level == 5){
-        const groupKey = `${item.parent}_${item.level}`;
-        
-        if (!unionMap.has(groupKey)) {
-          unionMap.set(groupKey, new Set());
-        }
-        
-        const currentSet = unionMap.get(groupKey);
-        item.source.forEach(src => currentSet.add(src));
-        console.log("####### unionMap", unionMap)
-        unionMap.set(groupKey, currentSet)
+      // 将当前等级的source集合一下
+      const groupKey = `${item.parent}_${item.level}`;
+      
+      if (!unionMap.has(groupKey)) {
+        unionMap.set(groupKey, new Set());
       }
+      
+      const currentSet = unionMap.get(groupKey);
+      item.source.forEach(src => currentSet.add(src));
+      unionMap.set(groupKey, currentSet)
 
       const sourceTotal = item.source.length;
 
@@ -421,6 +419,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
           sourcePort,
           targetId: currentId,
           targetPort,            // 【重要修改】：不再扩展桩位名，统一指向左连接桩
+          lineSource:src,
           color: lineColor,
           labelText: sIdx === 0 ? inflowAmount : '', // 仅在第一条主线上挂载金额
           sourceTotal,                  // 平行线总数
@@ -433,10 +432,11 @@ export function transformListToAlignedTopology(response, containerDOM, options =
   EDGE_DATA = EDGE_DATA.map(item =>{
     const groupKey = `${item.sourceId}_${item.level+1}`;
     const setArray = Array.from(unionMap.get(groupKey) || []);
-
+    let colorIndex = setArray.indexOf(item.lineSource);
     return {
       ...item,
-      set: setArray
+      colorIndex,
+      colorTotal: setArray.length
     };
   })
   return { NODE_DATA, EDGE_DATA };
