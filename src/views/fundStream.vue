@@ -132,183 +132,183 @@ export default {
     },
 
     /// 3. 精简、标准的连接桩画线函数（优化版：100% 保持原风格，支持 2-5 条线由中间向周围完美对称扩散）
-drawEdge(options) {
-  const { sourceId, sourcePort, targetId, targetPort, color, labelText, labelPos, sourceTotal = 1, sourceIndex = 0,level = -1, colorIndex, colorTotal} = options
-  let finalSource = { cell: sourceId, port: sourcePort }
-  let finalTarget = { cell: targetId, port: targetPort }
-  let forkVertices = null
-  // 💡 只有当多轨平行线总数大于 1 时，才触发动态轨道扩散偏移逻辑
-    // 💡 动态间距策略：线越多，间距稍微收紧（5条线用6px，3-4条用8px，2条用10px），防止线束过宽超出卡片边缘
-    let trackGap = 4
-    // if (sourceTotal >= 5) trackGap = 6
-    // if (sourceTotal === 2) trackGap = 10
-    let currentOffset = 0
-    if(colorTotal > 0) {
-      const offsetFactor = colorIndex - (colorTotal - 1) / 2
-      currentOffset = offsetFactor * trackGap
-    } else {
-      const offsetFactor = sourceIndex - (sourceTotal - 1) / 2
-      currentOffset = offsetFactor * trackGap
-    }
+    drawEdge(options) {
+      const { sourceId, sourcePort, targetId, targetPort, color, labelText, labelPos, sourceTotal = 1, sourceIndex = 0,level = -1, colorIndex, colorTotal} = options
+      let finalSource = { cell: sourceId, port: sourcePort }
+      let finalTarget = { cell: targetId, port: targetPort }
+      let forkVertices = null
+      // 💡 只有当多轨平行线总数大于 1 时，才触发动态轨道扩散偏移逻辑
+        // 💡 动态间距策略：线越多，间距稍微收紧（5条线用6px，3-4条用8px，2条用10px），防止线束过宽超出卡片边缘
+        let trackGap = 4
+        // if (sourceTotal >= 5) trackGap = 6
+        // if (sourceTotal === 2) trackGap = 10
+        let currentOffset = 0
+        if(colorTotal > 0) {
+          const offsetFactor = colorIndex - (colorTotal - 1) / 2
+          currentOffset = offsetFactor * trackGap
+        } else {
+          const offsetFactor = sourceIndex - (sourceTotal - 1) / 2
+          currentOffset = offsetFactor * trackGap
+        }
 
-    const targetNode = this.NODE_DATA.find(node => node.id === targetId)
-    const sourceNode = this.NODE_DATA.find(node => node.id === sourceId)
+        const targetNode = this.NODE_DATA.find(node => node.id === targetId)
+        const sourceNode = this.NODE_DATA.find(node => node.id === sourceId)
 
-    let bottomTarget = 1
-    if ((sourcePort === 'top' || sourcePort === 'bottom') && sourceNode && targetNode && targetNode.y > sourceNode.y && level != 1) {
-      bottomTarget = -1
-    }
-    if (sourcePort === 'top' || sourcePort === 'bottom') {
-      // 上下出线：在 X 轴上横向对称扩充
-      finalSource = { 
-        cell: sourceId, 
-        port: sourcePort,
-        anchor: { 
-          name: 'nodeCenter', 
-          args: { 
-            // 💡 一级到二级的起始节点没有偏移，其余使用经过方向修正后的 finalOffset
-            dx: level == 1 ? 0 : currentOffset 
-          } 
-        } 
-      }
-    } else {
-      // 左右出线：在 Y 轴上纵向对称扩充
-      finalSource = { 
-        cell: sourceId, 
-        port: sourcePort,
-        anchor: { 
-          name: 'nodeCenter', 
-          args: { 
-            dy: currentOffset 
-          } 
-        } 
-      }
-    }
-
-    const nodeW = targetNode ? targetNode.width : 120  
-    const nodeH = targetNode ? targetNode.height : 60  
-    
-    const offsetY = (nodeH / 2) + 16
-    const offsetX = (nodeW / 2) + 11
-
-    if (targetPort === 'top' || targetPort === 'bottom') {
-      finalTarget = {
-        cell: targetId,
-        // 💡 保持目标点的偏移与起点的 finalOffset 严格同步
-        anchor: { 
-          name: 'nodeCenter', 
-          args: { 
-            dx: currentOffset 
-          } 
-        }, 
-        connectionPoint: {
-          name: 'anchor',
-          args: {
-            offset: { y: -offsetY } 
+        let bottomTarget = 1
+        if ((sourcePort === 'top' || sourcePort === 'bottom') && sourceNode && targetNode && targetNode.y > sourceNode.y && level != 1) {
+          bottomTarget = -1
+        }
+        if (sourcePort === 'top' || sourcePort === 'bottom') {
+          // 上下出线：在 X 轴上横向对称扩充
+          finalSource = { 
+            cell: sourceId, 
+            port: sourcePort,
+            anchor: { 
+              name: 'nodeCenter', 
+              args: { 
+                // 💡 一级到二级的起始节点没有偏移，其余使用经过方向修正后的 finalOffset
+                dx: level == 1 ? 0 : currentOffset 
+              } 
+            } 
+          }
+        } else {
+          // 左右出线：在 Y 轴上纵向对称扩充
+          finalSource = { 
+            cell: sourceId, 
+            port: sourcePort,
+            anchor: { 
+              name: 'nodeCenter', 
+              args: { 
+                dy: currentOffset 
+              } 
+            } 
           }
         }
+
+        const nodeW = targetNode ? targetNode.width : 120  
+        const nodeH = targetNode ? targetNode.height : 60  
+        
+        const offsetY = (nodeH / 2) + 16
+        const offsetX = (nodeW / 2) + 11
+
+        if (targetPort === 'top' || targetPort === 'bottom') {
+          finalTarget = {
+            cell: targetId,
+            // 💡 保持目标点的偏移与起点的 finalOffset 严格同步
+            anchor: { 
+              name: 'nodeCenter', 
+              args: { 
+                dx: currentOffset 
+              } 
+            }, 
+            connectionPoint: {
+              name: 'anchor',
+              args: {
+                offset: { y: -offsetY } 
+              }
+            }
+          }
+        } else {
+          finalTarget = {
+            cell: targetId,
+            // 💡 保持目标点的偏移与起点的 finalOffset 严格同步
+            anchor: { 
+              name: 'nodeCenter', 
+              args: { 
+                dy: currentOffset * bottomTarget
+              } 
+            },
+            connectionPoint: {
+              name: 'anchor',
+              args: {
+                offset: { x: offsetX } 
+              }
+            }
+          }
+        }
+
+        // ==================== ✨ 1.32版本终极订正：两步法强控 0.3 处垂直折弯 ====================
+        if (level == 4 && sourceNode && targetNode) {
+          const startX = sourceNode.x + sourceNode.width;
+          const endX = targetNode.x;
+          const distanceX = endX - startX;
+          
+          const forkX = startX + (distanceX * 0.3);
+          
+          const sourceY = sourceNode.y + sourceNode.height / 2;
+          const targetY = targetNode.y + targetNode.height / 2 + currentOffset;
+
+          forkVertices = [
+            { x: Math.round(forkX), y: Math.round(sourceY) },
+            { x: Math.round(forkX), y: Math.round(targetY) }
+          ];
+        }
+        // =======================================================================================
+
+      const labels = []
+      if (labelText){
+        let labelPositionConfig = labelPos || 0.65;
+
+        if (level === 3 && sourceNode && targetNode) {
+
+          labelPositionConfig = {
+            distance: -85, // 负数代表从【终点】向【起点】倒数 45 像素。可根据需要微调（如 -50, -40）
+          };
+        }
+
+        if (level === 4 && sourceNode && targetNode) {
+
+          labelPositionConfig = {
+            distance: -45, // 负数代表从【终点】向【起点】倒数 45 像素。可根据需要微调（如 -50, -40）
+          };
+        }
+        labels.push({
+          attrs: {
+            text: { text: labelText, fontSize: 15, fill: '#64748b' },
+            rect: { fill: '#ffffff', rx: 3, ry: 3, stroke: '#e2e8f0', strokeWidth: 1 },
+          },
+          position: labelPositionConfig,
+        })
       }
-    } else {
-      finalTarget = {
-        cell: targetId,
-        // 💡 保持目标点的偏移与起点的 finalOffset 严格同步
-        anchor: { 
-          name: 'nodeCenter', 
-          args: { 
-            dy: currentOffset * bottomTarget
-          } 
+      
+      const edgeConfig = {
+        source: finalSource,
+        target: finalTarget,
+        router: {
+          name: forkVertices ? 'orth' : 'manhattan',
+          args: {
+            step: 10,
+            padding: 24, 
+          },
         },
-        connectionPoint: {
-          name: 'anchor',
-          args: {
-            offset: { x: offsetX } 
-          }
+        connector: {
+          name: 'rounded', 
+          args: { radius: 12 },
+        },
+        attrs: {
+          line: { 
+            stroke: color, 
+            strokeWidth: 2, 
+            targetMarker: ''
+          },
+        },
+        labels: labels,
+      }
+      const addedEdge = this.graph.addEdge(edgeConfig)
+      if (addedEdge) {
+        if (labelText) {
+          addedEdge.setZIndex(100 - sourceIndex) 
+        } else {
+          addedEdge.setZIndex(1)
         }
       }
-    }
 
-    // ==================== ✨ 1.32版本终极订正：两步法强控 0.3 处垂直折弯 ====================
-    if (level == 4 && sourceNode && targetNode) {
-      const startX = sourceNode.x + sourceNode.width;
-      const endX = targetNode.x;
-      const distanceX = endX - startX;
-      
-      const forkX = startX + (distanceX * 0.3);
-      
-      const sourceY = sourceNode.y + sourceNode.height / 2;
-      const targetY = targetNode.y + targetNode.height / 2 + currentOffset;
-
-      forkVertices = [
-        { x: Math.round(forkX), y: Math.round(sourceY) },
-        { x: Math.round(forkX), y: Math.round(targetY) }
-      ];
-    }
-    // =======================================================================================
-
-  const labels = []
-  if (labelText){
-    let labelPositionConfig = labelPos || 0.65;
-
-    if (level === 3 && sourceNode && targetNode) {
-
-      labelPositionConfig = {
-        distance: -85, // 负数代表从【终点】向【起点】倒数 45 像素。可根据需要微调（如 -50, -40）
-      };
-    }
-
-    if (level === 4 && sourceNode && targetNode) {
-
-      labelPositionConfig = {
-        distance: -45, // 负数代表从【终点】向【起点】倒数 45 像素。可根据需要微调（如 -50, -40）
-      };
-    }
-    labels.push({
-      attrs: {
-        text: { text: labelText, fontSize: 15, fill: '#64748b' },
-        rect: { fill: '#ffffff', rx: 3, ry: 3, stroke: '#e2e8f0', strokeWidth: 1 },
-      },
-      position: labelPositionConfig,
-    })
-  }
-  
-  const edgeConfig = {
-    source: finalSource,
-    target: finalTarget,
-    router: {
-      name: forkVertices ? 'orth' : 'manhattan',
-      args: {
-        step: 10,
-        padding: 24, 
-      },
+      // 2. 判定如果起点的自定义属性里存有 0.3 处的转折顶点，立刻强行注入
+      if (addedEdge && forkVertices) {
+        // 调用 1.x 版本最稳妥的动态顶点设置 API，强行掰正曼哈顿路由的分叉位置！
+        addedEdge.setVertices(forkVertices) 
+      }
     },
-    connector: {
-      name: 'rounded', 
-      args: { radius: 12 },
-    },
-    attrs: {
-      line: { 
-        stroke: color, 
-        strokeWidth: 2, 
-        targetMarker: ''
-      },
-    },
-    labels: labels,
-  }
-  const addedEdge = this.graph.addEdge(edgeConfig)
-  if (addedEdge) {
-    if (labelText) {
-      addedEdge.setZIndex(100 - sourceIndex) 
-    } else {
-      addedEdge.setZIndex(1)
-    }
-  }
-
-  // 2. 判定如果起点的自定义属性里存有 0.3 处的转折顶点，立刻强行注入
-  if (addedEdge && forkVertices) {
-    // 调用 1.x 版本最稳妥的动态顶点设置 API，强行掰正曼哈顿路由的分叉位置！
-    addedEdge.setVertices(forkVertices) 
-  }
-},
     renderChart() {
       if (!this.graph) return
       const { NODE_DATA, EDGE_DATA } = transformListToAlignedTopology(response, this.$refs.container)
