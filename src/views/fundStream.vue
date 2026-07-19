@@ -110,26 +110,6 @@ export default {
         attrs: { text: { text: node.label, fill: '#333', fontSize: 12, textAnchor: 'start' } }
       }
     },
-    // 在你的类或组建中定义一个创建隐形节点的方法
-    createForkNode(id, x, y) {
-      let forkNode = this.graph.getCellById(id);
-      if (!forkNode) {
-        forkNode = this.graph.addNode({
-          id: id,
-          x: Math.round(x),
-          y: Math.round(y),
-          width: 1,
-          height: 1,
-          attrs: {
-            body: {
-              fill: 'none',
-              stroke: 'none', // 隐形，不可见
-            },
-          },
-        });
-      }
-      return forkNode;
-    },
 
     /// 3. 精简、标准的连接桩画线函数（优化版：100% 保持原风格，支持 2-5 条线由中间向周围完美对称扩散）
     drawEdge(options) {
