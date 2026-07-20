@@ -1,23 +1,5 @@
 // data.js
 
-// 统一复用的连接桩定义：每个卡片都拥有四个方向的磁力吸附点
-const defaultPorts = {
-  groups: {
-    top: { position: 'top', attrs: { circle: { r: 0, magnet: true } } },
-    bottom: { position: 'bottom', attrs: { circle: { r: 0, magnet: true } } },
-    left: { position: 'left', attrs: { circle: { r: 0, magnet: true } } },
-    right: { position: 'right', attrs: { circle: { r: 0, magnet: true } } },
-    'left-1': { position: 'left', attrs: { circle: { r: 0, magnet: true } } },
-  },
-  items: [
-    { id: 'top', group: 'top' },
-    { id: 'bottom', group: 'bottom' },
-    { id: 'left', group: 'left' },
-    { id: 'right', group: 'right' },
-    { id: 'left-1', group: 'left-1' },
-    { id: 'left-2', group: 'left-1' },
-  ],
-};
 export const response = [
     // ---- 第一层：资金来源 ----
     { "id": "zxj", "name": "专项债", "level": 1, "source": [], "parent": null, "inflowAmount": null },
@@ -62,72 +44,6 @@ export const response = [
     { "id": "y_g", "name": "农民工", "level": 5, "source": ["zxj"], "parent": "bj_3", "inflowAmount": "100.00万元" }
 ];
 
-
-export const NODE_DATA1 = [
-  // ---- 第一列：资金来源 ----
-  { id: 'zxj', x: 80, y: 150, width: 110, height: 44, label: '专项债', type: 'source-orange', ports: defaultPorts },
-  { id: 'czbk', x: 80, y: 350, width: 110, height: 44, label: '财政拨款', type: 'source-purple', ports: defaultPorts },
-
-  // ---- 第二列：核心主体 ----
-  { id: 'st_subway', x: 260, y: 210, width: 120, height: 120, label: '上海申通地铁', type: 'center-card', ports: defaultPorts },
-
-  // ---- 第三列：项目线路 ----
-    { id: 'line_cm', x: 480, y: 135, width: 110, height: 44, label: '崇明线', type: 'line-node', ports: defaultPorts },
-  // 21号线：Y = 355, 高度 44
-  { id: 'line_21', x: 480, y: 355, width: 110, height: 44, label: '21号线', type: 'line-node', ports: defaultPorts },
-
-  // ---- 第四列：建设单位 ----
-  { id: 'bj_8', x: 700, y: 130, width: 150, height: 54, label: '中建八局', subLabel: '留存金额：1000万元', type: 'target-card', ports: defaultPorts },
-  
-  // 基础工程集团：位于中间过渡（保持原样或根据需要微调）
-  { id: 'jc_group', x: 700, y: 235, width: 150, height: 44, label: '基础工程集团', type: 'target-card', ports: defaultPorts },
-  
-  // 中建三局：高度 54。为了和21号线居中对齐：355 + (44 - 54)/2 = 350
-  { id: 'bj_3', x: 700, y: 350, width: 150, height: 54, label: '中建三局', subLabel: '留存金额：1000万元', type: 'target-card', ports: defaultPorts },
-
-  // ---- 第五列：右侧叶子节点 ----
-  { id: 'y_zs', x: 950, y: 90, width: 100, height: 20, label: '八局装饰', ports: defaultPorts },
-  { id: 'y_jd1', x: 950, y: 125, width: 100, height: 20, label: '上安机电', ports: defaultPorts },
-  { id: 'y_lw', x: 950, y: 160, width: 100, height: 20, label: '武东建筑劳务', ports: defaultPorts },
-  { id: 'y_bl', x: 950, y: 195, width: 100, height: 20, label: '南玻玻璃', ports: defaultPorts },
-  { id: 'y_more1', x: 950, y: 230, width: 100, height: 20, label: '......', ports: defaultPorts },
-  { id: 'y_jd2', x: 950, y: 290, width: 100, height: 20, label: '上安机电', ports: defaultPorts },
-  { id: 'y_dl', x: 950, y: 340, width: 100, height: 20, label: '起帆电缆', ports: defaultPorts },
-  { id: 'y_fj', x: 950, y: 375, width: 100, height: 20, label: '上虞风机', ports: defaultPorts },
-  { id: 'y_yg', x: 950, y: 410, width: 100, height: 20, label: '员工', ports: defaultPorts },
-  { id: 'y_g', x: 950, y: 445, width: 100, height: 20, label: '农民工', ports: defaultPorts }
-];
-
-export const EDGE_DATA1 = [
-  // 1. 专项债 -> 地铁：强制从【底连接桩】出发，进入地铁【左连接桩】
-  { sourceId: 'zxj', sourcePort: 'bottom', targetId: 'st_subway', targetPort: 'left-1', color: '#ff9900', labelText: '800.00万元' },
-  // 2. 财政拨款 -> 地铁：强制从【顶连接桩】出发，进入地铁【左连接桩】
-  { sourceId: 'czbk', sourcePort: 'top', targetId: 'st_subway', targetPort: 'left-2', color: '#a180ff', labelText: '2000.00万元' },
-
-  // 3. 上海申通地铁 -> 崇明线 (这里由于连线绑定相同连接桩，可以用之前的 labelPos 或直接依赖算法，或绑定同一端口)
-  { sourceId: 'st_subway', sourcePort: 'top', targetId: 'line_cm', targetPort: 'left', color: '#ff9900', labelText: '700.00万元', labelPos: 0.35  },
-  { sourceId: 'st_subway', sourcePort: 'top', targetId: 'line_cm', targetPort: 'left', color: '#a180ff', labelText: '',isSecondLine: true },
-
-  // 4. 上海申通地铁 -> 21号线
-  { sourceId: 'st_subway', sourcePort: 'bottom', targetId: 'line_21', targetPort: 'left', color: '#ff9900', labelText: '1000.00万元' },
-
-  // 5. 崇明线 -> 中建八局
-  { sourceId: 'line_cm', sourcePort: 'right', targetId: 'bj_8', targetPort: 'left', color: '#ff9900', labelText: '500.00万元', labelPos: 0.35 },
-  { sourceId: 'line_cm', sourcePort: 'right', targetId: 'bj_8', targetPort: 'left', color: '#a180ff', labelText: '' },
-
-  // 6. 崇明线 -> 基础工程集团 (高度不一致，从右出，自动生成 90 度折线指过去)
-  { sourceId: 'line_cm', sourcePort: 'bottom', targetId: 'jc_group', targetPort: 'left', color: '#ff9900', labelText: '1000.00万元', labelPos: 0.35 },
-  { sourceId: 'line_cm', sourcePort: 'bottom', targetId: 'jc_group', targetPort: 'left', color: '#a180ff', labelText: '' },
-
-  // 7. 21号线 -> 中建三局
-  { sourceId: 'line_21', sourcePort: 'right', targetId: 'bj_3', targetPort: 'left', color: '#ff9900', labelText: '500.00万元', labelPos: 0.35 },
-  { sourceId: 'line_21', sourcePort: 'right', targetId: 'bj_3', targetPort: 'left', color: '#a180ff', labelText: '' },
-
-  // ---- 后续的所有叶子节点连线，全部套用右出、左进的 90 度逻辑 ----
-  ...['y_zs', 'y_jd1', 'y_lw', 'y_bl', 'y_more1'].map(id => ({ sourceId: 'bj_8', sourcePort: 'right', targetId: id, targetPort: 'left', color: '#ffb3a7', labelText: '100.00万元' })),
-  ...['y_jd2'].map(id => ({ sourceId: 'jc_group', sourcePort: 'right', targetId: id, targetPort: 'left', color: '#ffb3a7', labelText: '100.00万元' })),
-  ...['y_dl', 'y_fj', 'y_yg', 'y_g'].map(id => ({ sourceId: 'bj_3', sourcePort: 'right', targetId: id, targetPort: 'left', color: '#ffb3a7', labelText: '100.00万元' }))
-];
 /**
  * 纯动态几何推导：根据原始层级列表数据，全量自动生成带有精准对齐坐标和桩位的节点与边数据
  * @param {Array} response 原始输入数组（全动态自适应）
