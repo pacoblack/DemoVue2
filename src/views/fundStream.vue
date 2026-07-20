@@ -323,11 +323,36 @@ export default {
           position: labelPositionConfig,
         })
       }
+      if (level === 1) {
+        labels.push({
+          position: 1, // 1 代表连线的终点（0代表起点，0.5代表中间）
+          options: {
+            keepRotation: true, // 👈 超级重要：开启这个，箭头会自动根据线是横着走还是竖着走来自动旋转方向！
+          },
+          markup: [
+            {
+              tagName: 'path',
+              selector: 'customArrow',
+            },
+          ],
+          attrs: {
+            customArrow: {
+              d: 'M 10 6 L 2 11 L 5 6 L 2 1 Z', 
+              fill: color || '#3b82f6', 
+              // stroke: '#1e40af',             // 可定制：箭头边框颜色
+              strokeWidth: 1,
+              transform: 'scale(1, 1) translate(-10, -6)', 
+            },
+          },
+        })
+      }
+
+
       const edgeConfig = {
         source: finalSource,
         target: finalTarget,
         router: {
-          name: forkVertices ? 'orth' : 'manhattan',
+          name: (level ==1 ||forkVertices) ? 'orth' : 'manhattan',
           args: {
             step: 10,
             padding: 24, 
