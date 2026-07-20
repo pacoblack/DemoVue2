@@ -195,13 +195,17 @@ export function transformListToAlignedTopology(response, containerDOM, options =
     if (item.level === 1) {
       type = item.id === 'zxj' ? 'source-orange' : 'source-purple';
     } else if (item.level === 2) {
-      width = 120; height = 120; type = 'center-card';
+      width = 120; 
+      height = 120; 
+      type = 'center-card';
     } else if (item.level === 3) {
       type = 'line-node';
     } else if (item.level === 4) {
-      width = 150; height = item.retainedAmount ? 54 : 44; type = 'target-card';
+      width = 150; 
+      height = item.retainedAmount ? 54 : 44; 
+      type = 'target-card';
     } else if (item.level === 5) {
-      width = 40; height = 20;
+      width = 10; height = 20;
     }
 
     nodeMap[item.id] = {

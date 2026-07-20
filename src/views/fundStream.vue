@@ -51,6 +51,35 @@ export default {
     },
 
     getNodeStyleStrategy(node, ) {
+      const arrowAttrs = {
+        'arrow-track-0': {
+          d: 'M 10 6 L 2 11 L 5 6 L 2 1 Z', 
+          fill: 'none', // 默认透明不占地
+          stroke: 'none',
+          refX: 0,
+          refX2: -12, // 贴在卡片最左侧边缘
+          refY: 0.5,
+          refY2: -6,  // 雷打不动物理锁死在卡片高度的最正中心线！
+        },
+        'arrow-track-1': {
+          d: 'M 10 6 L 2 11 L 5 6 L 2 1 Z',
+          fill: 'none',
+          stroke: 'none',
+          refX: 0,
+          refX2: -18, // 往左错开 6 像素排队
+          refY: 0.5,
+          refY2: -6,
+        },
+        'arrow-track-2': {
+          d: 'M 10 6 L 2 11 L 5 6 L 2 1 Z',
+          fill: 'none',
+          stroke: 'none',
+          refX: 0,
+          refX2: -24, // 往左错开 12 像素排队
+          refY: 0.5,
+          refY2: -6,
+        }
+      }
       const strategies = {
         'source-orange': {
           markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'text' }],
@@ -89,25 +118,71 @@ export default {
         'line-node': {
           markup: [
             { tagName: 'rect', selector: 'body' }, 
-            { tagName: 'text', selector: 'text' } ],
+            { tagName: 'text', selector: 'text' },
+            {
+              tagName: 'path',
+              selector: 'arrow-track-0', // 专门负责第一条连线（比如橙色）的箭头
+            },
+            {
+              tagName: 'path',
+              selector: 'arrow-track-1', // 专门负责第二条连线（比如紫色）的箭头
+            },
+            {
+              tagName: 'path',
+              selector: 'arrow-track-2', // 专门负责第三条连线的箭头（做2-5个拓展兜底）
+            } ],
           attrs: {
             body: { fill: '#3b82f6', stroke: 'none', rx: 20, ry: 20 },
             text: { text: node.label, fill: '#fff', fontSize: 14, fontWeight: 'bold' },
+            ...arrowAttrs
           }
         },
         'target-card': {
-          markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'text' }, { tagName: 'text', selector: 'subText' }],
+          markup: [
+            { tagName: 'rect', selector: 'body' }, 
+            { tagName: 'text', selector: 'text' }, 
+            { tagName: 'text', selector: 'subText' },
+            {
+              tagName: 'path',
+              selector: 'arrow-track-0', // 专门负责第一条连线（比如橙色）的箭头
+            },
+            {
+              tagName: 'path',
+              selector: 'arrow-track-1', // 专门负责第二条连线（比如紫色）的箭头
+            },
+            {
+              tagName: 'path',
+              selector: 'arrow-track-2', // 专门负责第三条连线的箭头（做2-5个拓展兜底）
+            }],
           attrs: {
             body: { fill: '#eff6ff', stroke: '#bfdbfe', strokeWidth: 1, rx: 20, ry: 20 },
             text: { text: node.label, fill: '#1e40af', fontSize: 13, fontWeight: 'bold', refY: node.subLabel ? 22 : 0.5 },
-            subText: { text: node.subLabel || '', fill: '#64748b', fontSize: 11, refY: 42 }
+            subText: { text: node.subLabel || '', fill: '#64748b', fontSize: 11, refY: 42 },
+            ...arrowAttrs
           }
         }
       }
 
       return strategies[node.type] || {
-        markup: [{ tagName: 'text', selector: 'text' }],
-        attrs: { text: { text: node.label, fill: '#333', fontSize: 12, textAnchor: 'start' } }
+        markup: [
+          { tagName: 'text', selector: 'text' },
+          {
+            tagName: 'path',
+            selector: 'arrow-track-0', // 专门负责第一条连线（比如橙色）的箭头
+          },
+          {
+            tagName: 'path',
+            selector: 'arrow-track-1', // 专门负责第二条连线（比如紫色）的箭头
+          },
+          {
+            tagName: 'path',
+            selector: 'arrow-track-2', // 专门负责第三条连线的箭头（做2-5个拓展兜底）
+          }
+        ],
+        attrs: { 
+          text: { text: node.label, fill: '#333', fontSize: 12, textAnchor: 'start' },
+          ...arrowAttrs
+        }
       }
     },
 
@@ -250,7 +325,6 @@ export default {
           position: labelPositionConfig,
         })
       }
-      
       const edgeConfig = {
         source: finalSource,
         target: finalTarget,
@@ -289,6 +363,31 @@ export default {
         addedEdge.setVertices(forkVertices) 
       }
     },
+    renderAllLevel4Arrows() {
+      // 1. 获取全场所有的节点实例
+      const allNodes = this.graph.getNodes();
+      
+      allNodes.forEach(node => {
+        // 💡 过滤出第 4 级的文字卡片（根据你的业务属性来辨别，或者通过它的位置/ID前缀过滤）
+        // 假设你的第 4 级卡片数据的层级记录在 node.getData() 里，或者根据传入的 ID 区分：
+        // 这里我们判断：只要该节点有入线，并且属于我们想加箭头的右侧卡片
+        const incomingEdges = this.graph.getIncomingEdges(node);
+        
+        if (incomingEdges && incomingEdges.length > 0) {
+          // 2. 🌟 绝妙之法：既然现在全场的线都已经渲染完毕，卡片可以直接清点有哪些线连向了自己！
+          // 我们按照颜色或者原先的局部序号，给这批入线排个队
+          incomingEdges.forEach((edge, index) => {
+            const edgeColor = edge.attr('line/stroke') || '#ff9900'; // 提取这条线的真实颜色
+            
+            // 限制在 0-2 范围内（对齐卡片定义里 arrow-track-0, 1, 2 的占位符）
+            const trackSelector = `arrow-track-${Math.min(index, 2)}`;
+            
+            // 3. 🌟 顺理成章地点亮卡片身上自带的对应箭头插槽！
+            node.prop(`attrs/${trackSelector}/fill`, edgeColor);
+          });
+        }
+      });
+    },
     renderChart() {
       if (!this.graph) return
       const { NODE_DATA, EDGE_DATA } = transformListToAlignedTopology(response, this.$refs.container)
@@ -305,6 +404,7 @@ export default {
       this.EDGE_DATA.forEach(edge => {
         this.drawEdge(edge)
       })
+      this.renderAllLevel4Arrows()
     },
 
     handleResize() {
