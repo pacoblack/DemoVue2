@@ -99,20 +99,18 @@ export default {
           markup: [
             { tagName: 'rect', selector: 'body' }, 
             { tagName: 'text', selector: 'text' },
-            { tagName: 'image', selector: 'icon' }, ],
+          ],
           attrs: {
             body: { fill: '#fff', stroke: '#cbd5e1', strokeWidth: 1, rx: 12, ry: 12 },
-            icon: {
-              'xlink:href': '/images/arrow.svg', // 直接使用上面 import 进来的变量
-              width: 40,
-              height: 40,
-              refX: 0.5,
-              refY: 15,
-              x: -20, 
-            },
-            text: { text: node.label, fill: '#333', fontSize: 14, fontWeight: 'bold', refX: 0.5,               // 文字水平居中
+            text: { 
+              text: node.label, 
+              fill: '#333', 
+              fontSize: 14, 
+              fontWeight: 'bold', 
+              refX: 0.5,               // 文字水平居中
               refY: 70,                // 距离顶部 70 像素，挪到图片下方
-              textAnchor: 'middle', }
+              textAnchor: 'middle', 
+            }
           }
         },
         'line-node': {
@@ -196,7 +194,7 @@ export default {
         // 💡 动态间距策略：线越多，间距稍微收紧（5条线用6px，3-4条用8px，2条用10px），防止线束过宽超出卡片边缘
         let trackGap = 4
         // if (sourceTotal >= 5) trackGap = 6
-        // if (sourceTotal === 2) trackGap = 10
+        if (level === 1) trackGap = 30
         let currentOffset = 0
         if(colorTotal > 0) {
           const offsetFactor = colorIndex - (colorTotal - 1) / 2
