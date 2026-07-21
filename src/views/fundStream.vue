@@ -7,9 +7,20 @@
       :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }"
     >
       <template v-if="tooltip.data.remainingNodes && tooltip.data.remainingNodes.length > 0">
-        <div v-for="(subNode, idx) in tooltip.data.remainingNodes" :key="idx">
-          • {{ subNode.desc || subNode.name }}
+        <div style="text-align: left;">
+        <div 
+          v-for="(subNode, idx) in tooltip.data.remainingNodes" 
+          :key="idx"
+          style="display: flex; align-items: flex-start; margin-bottom: 4px;"
+        >
+          <!-- 固定的圆点前缀，不参与挤压 -->
+          <span style="flex-shrink: 0; margin-right: 6px;">•</span>
+          <!-- 文本内容 -->
+          <span style="word-break: break-all;">
+            {{ subNode.desc || subNode.name }}{{ subNode.retainedAmount? ":" +subNode.retainedAmount : "" }}
+          </span>
         </div>
+      </div>
       </template>
 
       <template v-else>
