@@ -6,7 +6,7 @@
 
 <script>
 import { Graph } from '@antv/x6'
-import { response, transformListToAlignedTopology } from './data'
+import { response, transformListToAlignedTopology,sourceColorPalette } from './data'
 
 export default {
   name: 'X6PortStyleChart',
@@ -81,17 +81,10 @@ export default {
         }
       }
       const strategies = {
-        'source-orange': {
+        'source-node': {
           markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'text' }],
           attrs: {
-            body: { fill: '#000000', stroke: 'none', rx: 20, ry: 20 },
-            text: { text: node.label, fill: '#fff', fontSize: 13, fontWeight: 'bold' }
-          }
-        },
-        'source-purple': {
-          markup: [{ tagName: 'rect', selector: 'body' }, { tagName: 'text', selector: 'text' }],
-          attrs: {
-            body: { fill: '#000000', stroke: 'none', rx: 20, ry: 20 },
+            body: { fill: node.levelIndex >=0 ?sourceColorPalette[node.levelIndex] : '#000', stroke: 'none', rx: 20, ry: 20 },
             text: { text: node.label, fill: '#fff', fontSize: 13, fontWeight: 'bold' }
           }
         },
@@ -189,12 +182,12 @@ export default {
       const { sourceId, sourcePort, targetId, targetPort, color, labelText, labelPos, sourceTotal = 1, sourceIndex = 0,level = -1, colorIndex, colorTotal} = options
       let finalSource = { cell: sourceId, port: sourcePort }
       let finalTarget = { cell: targetId, port: targetPort }
+
       let forkVertices = null
       // 💡 只有当多轨平行线总数大于 1 时，才触发动态轨道扩散偏移逻辑
         // 💡 动态间距策略：线越多，间距稍微收紧（5条线用6px，3-4条用8px，2条用10px），防止线束过宽超出卡片边缘
         let trackGap = 4
         // if (sourceTotal >= 5) trackGap = 6
-        if (level === 1) trackGap = 30
         let currentOffset = 0
         if(colorTotal > 0) {
           const offsetFactor = colorIndex - (colorTotal - 1) / 2
@@ -208,80 +201,49 @@ export default {
         const sourceNode = this.NODE_DATA.find(node => node.id === sourceId)
 
         let bottomTarget = 1
-        if ((sourcePort === 'top' || sourcePort === 'bottom') && sourceNode && targetNode && targetNode.y > sourceNode.y && level != 1) {
+        if ((sourcePort === 'top' || sourcePort === 'bottom' || sourcePort === 'unset') && sourceNode && targetNode && targetNode.y > sourceNode.y && level != 1) {
           bottomTarget = -1
         }
-        if (sourcePort === 'top' || sourcePort === 'bottom') {
-          // 上下出线：在 X 轴上横向对称扩充
-          finalSource = { 
-            cell: sourceId, 
-            port: sourcePort,
-            anchor: { 
-              name: 'nodeCenter', 
-              args: { 
-                // 💡 一级到二级的起始节点没有偏移，其余使用经过方向修正后的 finalOffset
-                dx: level == 1 ? 0 : currentOffset 
-              } 
-            } 
-          }
-        } else {
-          // 左右出线：在 Y 轴上纵向对称扩充
-          finalSource = { 
-            cell: sourceId, 
-            port: sourcePort,
-            anchor: { 
-              name: 'nodeCenter', 
-              args: { 
-                dy: currentOffset 
-              } 
-            } 
-          }
-        }
-
-        const nodeW = targetNode ? targetNode.width : 120  
-        const nodeH = targetNode ? targetNode.height : 60  
         
-        const offsetY = (nodeH / 2) + 16
-        const offsetX = (nodeW / 2) + 11
+        // 左右出线：在 Y 轴上纵向对称扩充
+        finalSource = { 
+          cell: sourceId, 
+          port: sourcePort,
+          anchor: { 
+            name: 'right', 
+            args: { 
+              dy: currentOffset 
+            } 
+          } 
+        }
 
-        if (targetPort === 'top' || targetPort === 'bottom') {
-          finalTarget = {
-            cell: targetId,
-            // 💡 保持目标点的偏移与起点的 finalOffset 严格同步
-            anchor: { 
-              name: 'nodeCenter', 
-              args: { 
-                dx: currentOffset 
-              } 
-            }, 
-            connectionPoint: {
-              name: 'anchor',
-              args: {
-                offset: { y: -offsetY } 
-              }
-            }
-          }
-        } else {
-          finalTarget = {
-            cell: targetId,
-            // 💡 保持目标点的偏移与起点的 finalOffset 严格同步
-            anchor: { 
-              name: 'nodeCenter', 
-              args: { 
-                dy: currentOffset * bottomTarget
-              } 
-            },
-            connectionPoint: {
-              name: 'anchor',
-              args: {
-                offset: { x: offsetX } 
-              }
+        // const nodeW = targetNode ? targetNode.width : 120  
+        // const nodeH = targetNode ? targetNode.height : 60  
+        
+        // const offsetY = (nodeH / 2) + 16
+        // const offsetX = (nodeW / 2) + 11
+
+        finalTarget = {
+          cell: targetId,
+          // 💡 保持目标点的偏移与起点的 finalOffset 严格同步
+          anchor: { 
+            name: 'left', 
+            args: { 
+              dy: currentOffset * bottomTarget
+            } 
+          },
+          connectionPoint: {
+            name: 'anchor',
+            args: {
+          //     offset: { x: offsetX * bottomTarget } 
+              offset: { x: -10 } 
             }
           }
         }
+        
 
         // ==================== ✨ 1.32版本终极订正：两步法强控 0.3 处垂直折弯 ====================
-        if (level == 4 && sourceNode && targetNode) {
+        if (level > 1 && sourceNode && targetNode) {
           const startX = sourceNode.x + sourceNode.width;
           const endX = targetNode.x;
           const distanceX = endX - startX;
@@ -352,7 +314,7 @@ export default {
         source: finalSource,
         target: finalTarget,
         router: {
-          name: (level ==1 ||forkVertices) ? 'orth' : 'manhattan',
+          name: 'orth',
           args: {
             step: 10,
             padding: 24, 
@@ -442,7 +404,7 @@ export default {
 <style scoped>
 .x6-chart-container {
   width: 100%;
-  height: 100vh;
+  height: 50vh;
   min-height: 600px;
   background-color: #f8fafc;
   position: relative;

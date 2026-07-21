@@ -1,9 +1,34 @@
 // data.js
+ // 1. 接入您给定的标准连接桩定义对象（回归原始桩位，去掉扩展编号桩）
+export const defaultPorts = {
+  groups: {
+    top: { position: 'top', attrs: { circle: { r: 0, magnet: true } } },
+    bottom: { position: 'bottom', attrs: { circle: { r: 0, magnet: true } } },
+    left: { position: 'left', attrs: { circle: { r: 0, magnet: true } } },
+    right: { position: 'right', attrs: { circle: { r: 0, magnet: true } } }
+  },
+  items: [
+    { id: 'top', group: 'top' },
+    { id: 'bottom', group: 'bottom' },
+    { id: 'left', group: 'left' },
+    { id: 'right', group: 'right' }
+  ]
+};
 
+  // 预设最多 5 种不同 source 对应的颜色列表
+export const sourceColorPalette = [
+  '#ff9900', // 索引 0: 专项债 (橙)
+  '#a180ff', // 索引 1: 财政拨款 (紫)
+  '#2db7f5', // 索引 2: 自筹资金 (蓝)
+  '#19be6b', // 索引 3: 银行贷款 (绿)
+  '#ed4014'  // 索引 4: 其他资金 (红)
+];
 export const response = [
     // ---- 第一层：资金来源 ----
     { "id": "zxj", "name": "专项债", "level": 1, "source": [], "parent": null, "inflowAmount": null },
     { "id": "czbk", "name": "财政拨款", "level": 1, "source": [], "parent": null, "inflowAmount": null },
+    { "id": "zczy", "name": "自筹资金", "level": 1, "source": [], "parent": null, "inflowAmount": null }, // 动态扩容测试
+    { "id": "ykdk", "name": "银行贷款", "level": 1, "source": [], "parent": null, "inflowAmount": null }, // 动态扩容测试
 
     // ---- 第二层：核心主体（source 细分来源金额，自身平级记录总额） ----
     { 
@@ -14,7 +39,9 @@ export const response = [
       // parents 已重命名为 source
       "source": [
         { "id": "zxj", "amount": "800.00万元" },
-        { "id": "czbk", "amount": "2000.00万元" }
+        { "id": "czbk", "amount": "2000.00万元" },
+        { "id": "zczy", "amount": "2000.00万元" },
+        { "id": "ykdk", "amount": "2000.00万元" }
       ],
       // parent 取自原数组中的第一个元素（即 zxj 的对象格式）
       "parent": ''
@@ -45,38 +72,84 @@ export const response = [
 ];
 
 /**
+ * 🌟 终极通用版：以画布高度为范围，严格以 L2 为中轴向上下两侧完美、均匀分布（含宽高等比例缩小兜底）
+ * @param {Array} nodesSingleLevel - 当前层级（例如所有 level 1 或所有 level 4）的节点数组
+ * @param {number} l2CenterY       - L2 (中心卡片) 的绝对几何中心 Y 坐标 (targetNode.y + height/2)
+ * @param {number} canvasHeight    - 画布的总可用高度
+ * @param {number} minGap          - 允许的垂直最小安全隔离间距（像素兜底，默认 20）
+ */
+function calculateGenericLevelYWithScale(nodesSingleLevel, l2CenterY, canvasHeight, minGap = 20) {
+  const nodes = nodesSingleLevel || [];
+  const count = nodes.length;
+  if (count === 0) return;
+
+  // 💡 1. 设定全画布的最大边界安全防线（保留上下各 40px 的绝对边缘视口隔离带）
+  const maxAllowedHeight = canvasHeight - 80;
+
+  // 💡 2. 统计在不缩放状态下，该层所有卡片自身的物理高度绝对总和
+  let totalNodeHeight = 0;
+  nodes.forEach(node => { totalNodeHeight += node.height; });
+
+  let currentGap = minGap;
+  let scaleFactor = 1.0;
+
+  if (count === 1) {
+    // 🌟 特殊兜底：单节点直接死死钉在 L2 的中轴线上
+    nodes[0].y = Math.round(l2CenterY - nodes[0].height / 2);
+    return;
+  }
+
+  // 💡 3. 计算弹性可用剩余空白间距总额
+  const availableSurplusSpace = maxAllowedHeight - totalNodeHeight;
+  const gapCount = count - 1;
+
+  // 💡 4. 核心空间平分调度决策器
+  if (availableSurplusSpace >= gapCount * minGap) {
+    // 🟢 情况 A（空间极度宽裕，2-5个节点动态铺满全场）：
+    // 弹性空白空间极其充沛，直接完美、均匀地把整个画布的高度平摊给各个间距，不缩放宽高！
+    currentGap = availableSurplusSpace / gapCount;
+  } else {
+    // 🔴 情况 B（节点暴增，产生极限挤压或重叠）：
+    // 连最小的 minGap 都放不下了！瞬间触发宽高和间距的全局等比例缩小保护网！
+    const idealTotalHeight = totalNodeHeight + (gapCount * minGap); // 理想总高度
+    scaleFactor = maxAllowedHeight / idealTotalHeight;
+    
+    // 限制过度压扁：最小允许缩到原本的 0.5 倍
+    scaleFactor = Math.max(scaleFactor, 0.5);
+    currentGap = minGap * scaleFactor;
+
+    nodes.forEach(node => {
+      // 宽高同步压缩
+      node.width = Math.round(node.width * scaleFactor);
+      node.height = Math.round(node.height * scaleFactor);
+    });
+  }
+
+  // 💡 5. 重新统计处理后的全层节点最终物理总占用高度
+  let finalTotalHeight = 0;
+  nodes.forEach(node => { finalTotalHeight += node.height; });
+  finalTotalHeight += (count - 1) * currentGap;
+
+  // 🌟 6. 以 L2 中心 Y 坐标为终极天平，向上下两侧完美对称铺设 Y 坐标，达成 100% 垂直等高对称
+  let currentY = l2CenterY - (finalTotalHeight / 2);
+
+  nodes.forEach(node => {
+    node.y = Math.round(currentY);
+    // 指针向下平滑推进
+    currentY += node.height + currentGap;
+  });
+}
+
+
+/**
  * 纯动态几何推导：根据原始层级列表数据，全量自动生成带有精准对齐坐标和桩位的节点与边数据
  * @param {Array} response 原始输入数组（全动态自适应）
  * @param {Object} options 间距微调配置项（可选）
  * @returns {Object} { NODE_DATA, EDGE_DATA }
  */
 export function transformListToAlignedTopology(response, containerDOM, options = {}) {
-  // 1. 接入您给定的标准连接桩定义对象（回归原始桩位，去掉扩展编号桩）
-  const defaultPorts = {
-    groups: {
-      top: { position: 'top', attrs: { circle: { r: 0, magnet: true } } },
-      bottom: { position: 'bottom', attrs: { circle: { r: 0, magnet: true } } },
-      left: { position: 'left', attrs: { circle: { r: 0, magnet: true } } },
-      right: { position: 'right', attrs: { circle: { r: 0, magnet: true } } }
-    },
-    items: [
-      { id: 'top', group: 'top' },
-      { id: 'bottom', group: 'bottom' },
-      { id: 'left', group: 'left' },
-      { id: 'right', group: 'right' }
-    ]
-  };
-
-  // 预设最多 5 种不同 source 对应的颜色列表
-  const sourceColorPalette = [
-    '#ff9900', // 索引 0: 专项债 (橙)
-    '#a180ff', // 索引 1: 财政拨款 (紫)
-    '#2db7f5', // 索引 2: 自筹资金 (蓝)
-    '#19be6b', // 索引 3: 银行贷款 (绿)
-    '#ed4014'  // 索引 4: 其他资金 (红)
-  ];
-
   const canvasWidth = containerDOM ? containerDOM.clientWidth : 1200; 
+  const canvasHeight = containerDOM ? containerDOM.clientHeight : 600;
 
   // 2. 严格按照画布总宽度的百分比/比例系数划分
   const widthRatios = {
@@ -109,7 +182,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
     let type = undefined;
 
     if (item.level === 1) {
-      type = item.id === 'zxj' ? 'source-orange' : 'source-purple';
+      type = 'source-node';
     } else if (item.level === 2) {
       width = 120; 
       height = 120; 
@@ -131,7 +204,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
       type,
       x: config.colX[item.level], 
       y: 0,
-      children: [] 
+      children: []
     };
     nodesByLevel[item.level].push(nodeMap[item.id]);
   });
@@ -157,6 +230,13 @@ export function transformListToAlignedTopology(response, containerDOM, options =
 
 
   // ==================== 一、Y 坐标核心动态几何推导 ====================
+  // 【3】反向确定第 2 层（核心主体）的 Y 坐标
+  nodesByLevel[2].forEach(l2Node => {
+    l2Node.y = config.canvasCenterY - (l2Node.height / 2);
+  });
+
+  nodesByLevel[1].forEach(node => { node.type = 'source-node'; }); // 统一更名为 source-node
+  calculateGenericLevelYWithScale(nodesByLevel[1],nodesByLevel[2][0].y, canvasHeight, 20);
 
   // 【1】确立核心主干线路的垂直中心线
   const level3Nodes = nodesByLevel[3];
@@ -212,6 +292,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
   // 1. 构建输出带有物理坐标及连接端口的 NODE_DATA
   const NODE_DATA = response.map(item => {
     const cached = nodeMap[item.id];
+    const targetIndex = nodesByLevel[item.level].findIndex(n=> n.id == item.id)
     const res = {
       id: item.id,
       x: Math.round(cached.x),
@@ -221,7 +302,8 @@ export function transformListToAlignedTopology(response, containerDOM, options =
       label: item.name,
       ports: defaultPorts ,
       parent: item.parent,
-      level: item.level
+      level: item.level,
+      levelIndex: targetIndex
     };
 
     if (cached.type) res.type = cached.type;
@@ -242,16 +324,13 @@ export function transformListToAlignedTopology(response, containerDOM, options =
         const srcId = typeof src === 'object' ? src.id : src;
         const amount = typeof src === 'object' ? src.amount : '';
 
-        // 统一流入核心主体的 left 桩位，靠渲染层通过 offset 区别或系统默认多线并行处理
-        const sourcePort = srcId === 'zxj' ? 'bottom' : 'top';
-        const targetPort = 'left'; 
         const lineColor = sourceColorPalette[sIdx] || '#ff9900';
 
         EDGE_DATA.push({
           sourceId: srcId,
-          sourcePort,
+          sourcePort:'right',
           targetId: currentId,
-          targetPort,
+          targetPort: 'left',
           color: lineColor,
           labelText: amount,
           sourceTotal: item.source.length, // 1~2层连线一并补齐多线参数，方便统一处理
@@ -267,9 +346,6 @@ export function transformListToAlignedTopology(response, containerDOM, options =
       const parentNode = nodeMap[parentId];
       const inflowAmount = item.inflowAmount || '';
 
-      const l3Index = nodesByLevel[3].findIndex(n => n.id === currentId);
-      const sourcePort = l3Index === 0 ? 'top' : 'bottom';
-
       // 核心研判：如果父级节点（核心主体）拥有多源资金，且当前是主干的第一条线路，触发多平行线生成
       if (item.source && item.source.length > 1) {
         const sourceTotal = item.source.length;
@@ -279,7 +355,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
 
           EDGE_DATA.push({
             sourceId: parentId,
-            sourcePort,
+            sourcePort:'right',
             targetId: currentId,
             targetPort: 'left',            // 【重要修改】：不再扩展桩位名，统一指向左连接桩
             color: lineColor,
@@ -293,7 +369,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
         // 普通单线（例如21号线）
         EDGE_DATA.push({
           sourceId: parentId,
-          sourcePort,
+          sourcePort:'right',
           targetId: currentId,
           targetPort: 'left',
           color: sourceColorPalette[0],
@@ -311,13 +387,6 @@ export function transformListToAlignedTopology(response, containerDOM, options =
       const parentNode = nodeMap[parentId];
       const inflowAmount = item.inflowAmount || '';
 
-      let sourcePort = 'right';
-      let targetPort = 'left';
-
-      if (item.level === 4) {
-        const isFirstChild = parentNode?.children[0]?.id === currentId;
-        sourcePort = isFirstChild ? 'right' : 'bottom';
-      }
       // 将当前等级的source集合一下
       const groupKey = `${item.parent}_${item.level}`;
       
@@ -336,9 +405,9 @@ export function transformListToAlignedTopology(response, containerDOM, options =
 
         EDGE_DATA.push({
           sourceId: parentId,
-          sourcePort,
+          sourcePort: 'right',
           targetId: currentId,
-          targetPort,            // 【重要修改】：不再扩展桩位名，统一指向左连接桩
+          targetPort: "left", 
           lineSource:src,
           color: lineColor,
           labelText: sIdx === 0 ? inflowAmount : '', // 仅在第一条主线上挂载金额
