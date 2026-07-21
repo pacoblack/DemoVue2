@@ -50,10 +50,22 @@ export const response = [
     // ---- 第三层：项目线路 ----
     { "id": "line_cm", "name": "崇明线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "2700.00万元" },
     { "id": "line_21", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
+    { "id": "line_22", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
+    { "id": "line_23", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
+    { "id": "line_24", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
+     { "id": "line_25", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
 
     // ---- 第四层：建设单位 ----
     { "id": "bj_8", "name": "中建八局", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_cm", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
     { "id": "jc_group", "name": "基础工程集团", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_cm", "inflowAmount": "1000.00万元" },
+    { "id": "bj_81", "name": "中建八局", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_24", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
+    { "id": "jc_group1", "name": "基础工程集团", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_24", "inflowAmount": "1000.00万元" },
+    { "id": "bj_82", "name": "中建八局", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_23", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
+    { "id": "jc_group2", "name": "基础工程集团", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_23", "inflowAmount": "1000.00万元" },
+    { "id": "bj_83", "name": "中建八局", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_22", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
+    { "id": "jc_group3", "name": "基础工程集团", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_22", "inflowAmount": "1000.00万元" },
+    { "id": "bj_84", "name": "中建八局", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_21", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
+    { "id": "jc_group4", "name": "基础工程集团", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_21", "inflowAmount": "1000.00万元" },
     { "id": "bj_3", "name": "中建三局", "level": 4, "source": ["zxj"], "parent": "line_21", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
 
     // ---- 第五层：末端叶子节点 ----
@@ -61,7 +73,9 @@ export const response = [
     { "id": "y_jd1", "name": "上安机电", "level": 5, "source": ["zxj", 'czbk'], "parent": "bj_8", "inflowAmount": "100.00万元" },
     { "id": "y_lw", "name": "武东建筑劳务", "level": 5, "source": ["zxj", 'czbk'], "parent": "bj_8", "inflowAmount": "100.00万元" },
     { "id": "y_bl", "name": "南玻玻璃", "level": 5, "source": ["zxj"], "parent": "bj_8", "inflowAmount": "100.00万元" },
-    { "id": "y_more1", "name": "......", "level": 5, "source": ["zxj", 'czbk'], "parent": "bj_8", "inflowAmount": "100.00万元" },
+    { "id": "y_more1", "name": "123", "level": 5, "source": ["zxj"], "parent": "bj_8", "inflowAmount": "100.00万元" },
+    { "id": "y_more2", "name": "456", "level": 5, "source": ['czbk'], "parent": "bj_8", "inflowAmount": "100.00万元" ,"retainedAmount": "1000万元",},
+    { "id": "y_more3", "name": "789", "level": 5, "source": ["zxj"], "parent": "bj_8", "inflowAmount": "100.00万元" ,"retainedAmount": "1000万元",},
     
     { "id": "y_jd2", "name": "上安机电", "level": 5, "source": ["zxj"], "parent": "jc_group", "inflowAmount": "100.00万元" },
     
@@ -70,6 +84,144 @@ export const response = [
     { "id": "y_yg", "name": "员工", "level": 5, "source": ["zxj"], "parent": "bj_3", "inflowAmount": "100.00万元" },
     { "id": "y_g", "name": "农民工", "level": 5, "source": ["zxj"], "parent": "bj_3", "inflowAmount": "100.00万元" }
 ];
+/**
+ * 递归资产包搜集器：自下而上递归搜集并提炼所有被隐藏合并的子孙节点明细与金额
+ * @param {string} targetId 当前被截断/吞并的节点 ID
+ * @param {Array} rawResponse 原始的数据列表
+ * @param {Object} summary 用于存储累加结果与提炼列表的容器对象
+ */
+function accumulateDescendants(targetId, rawResponse, summary) {
+  // 找出当前节点名下的所有直系孩子
+  const children = rawResponse.filter(item => item.parent === targetId);
+  
+  children.forEach(child => {
+    // 1. 累加数值金额
+    summary.inflow += parseAmount(child.inflowAmount);
+    summary.retained += parseAmount(child.retainedAmount);
+    
+    // 2. 合并并集 source 链
+    if (Array.isArray(child.source)) {
+      child.source.forEach(src => summary.sourceSet.add(src));
+    }
+    
+    // 🌟 3. 核心修改：提炼业务指定的 3 个核心字段，塞入隐藏明细列表
+    summary.mergedList.push({
+      name: child.name || '',
+      retainedAmount: child.retainedAmount || null,
+      inflowAmount: child.inflowAmount || null
+    });
+    
+    // 4. 递归向下穿透，把更深层的孙子、曾孙节点的资产包一并以提炼后的格式收缴上来
+    accumulateDescendants(child.id, rawResponse, summary);
+  });
+}
+
+/**
+ * 原始 Response 极简递归合并裁剪拦截器
+ * @param {Array} rawResponse 你的原始接口数据 response 列表
+ * @return {Array} 直接返回加工处理完、最大长度受限的全新一维 response 数组
+ */
+function processRawResponse(rawResponse) {
+  if (!Array.isArray(rawResponse)) return [];
+
+  // 1. 提取所有不需要进行子节点数量检查的根节点（Level 1）作为初始化骨架
+  let resultList = rawResponse.filter(item => !item.parent);
+
+  // 2. 找出全图所有“充当过父亲”的节点 ID 集合
+  const allParentIds = Array.from(new Set(rawResponse.filter(item => item.parent).map(item => item.parent)));
+
+  // 3. 核心：遍历每一个相同的父节点，对其名下的子节点分组进行 5 个的限额拦截
+  allParentIds.forEach(parentId => {
+    // 筛出当前父亲名下的所有孩子节点
+    const groupChildren = rawResponse.filter(item => item.parent === parentId);
+    
+    if (groupChildren.length <= 5) {
+      // 🟢 情况 A：当前父亲名下的子节点不超过 5 个，全员无损直接录入最终列表
+      resultList.push(...groupChildren);
+    } else {
+      // 🔴 情况 B：超过 5 个，触发局部精细化深度递归合并熔断
+      const realChildren = groupChildren.slice(0, 4);    // 前 4 个亲生卡片保持原样展示
+      const excessNodes = groupChildren.slice(4);     // 第 5 个及往后的卡片全部拿出来合并销毁
+
+      const childLevel = groupChildren[0] ? groupChildren[0].level : 1; // 继承子节点的统一 level
+
+      // 初始化当前父节点本组的资产合并累加器
+      const summary = {
+        inflow: 0,
+        retained: 0,
+        sourceSet: new Set(),
+        mergedList: [] // 提炼后的精简明细容器
+      };
+
+      // 4. 遍历这批超额被截断的孩子，并利用递归函数把它们身后的【所有子孙节点】也一并吞并累加
+      excessNodes.forEach(child => {
+        summary.inflow += parseAmount(child.inflowAmount);
+        summary.retained += parseAmount(child.retainedAmount);
+        if (Array.isArray(child.source)) {
+          child.source.forEach(src => summary.sourceSet.add(src));
+        }
+
+        // 🌟 核心修改：针对第 5 个及以后的直系孩子，也同步提炼这 3 个核心字段放入明细中
+        summary.mergedList.push({
+          name: child.name || '',
+          retainedAmount: child.retainedAmount || null,
+          inflowAmount: child.inflowAmount || null
+        });
+
+        // 🚀 递归穿透：顺着当前超额卡片往下抓，把属于该分支的所有更深层子孙资产也提炼出来吃掉
+        accumulateDescendants(child.id, rawResponse, summary);
+      });
+
+      // 🧱 5. 严格按照业务规范与您的最新诉求，创建全新的合并省略号卡片对象
+      const omitNode = {
+        id: `${parentId}_child`,                     // 规范 1：id 强制改为 parent_child 格式
+        name: '...',                                 // 规范 2：name 强行变更为 "..."
+        level: childLevel,                           // 规范 3：level 为子节点 level
+        parent: parentId,                            // 指向共同的亲生父亲
+        source: Array.from(summary.sourceSet),       // 规范 4：source 转换为合并去重后的并集数组
+        inflowAmount: formatAmount(summary.inflow),  // 规范 5：inflowAmount 为合并节点的求和
+        retainedAmount: summary.retained > 0 ? formatAmount(summary.retained) : null, // 规范 6：retainedAmount 求和
+        isOmitNode: true,                            // 注入省略号特殊样式标识
+        remainingNodes: summary.mergedList           // 🌟 规范 7：完美的提炼明细列表，专供 Tooltip 使用
+      };
+
+      // 6. 将处理完毕的【4个真实孩子】和【1个深度合并省略卡片】追加进结果列表
+      resultList.push(...realChildren, omitNode);
+    }
+  });
+
+  // 7. 【终极安全防线】：由于上面的合并销毁了一批超额的子孙，我们需要过滤掉
+  // 任何 parent 字段指向了“已经被合并销毁的节点”的那些孤立幽灵子孙卡片，防止它们漏网重新上屏
+  const finalResponse = resultList.filter(node => {
+    if (node.parent && !node.parent.endsWith('_child')) {
+      const isParentStillAlive = resultList.some(r => r.id === node.parent);
+      if (!isParentStillAlive) return false; // 父亲已经合并销毁，幽灵节点不予通过
+    }
+    return true;
+  });
+
+  // 🌟 8. 干净利落，直接返回纯一维、加工完的全新数据列表
+  return finalResponse;
+}
+
+/**
+ * 辅助清洗工具方法（带万元后缀转浮点数）
+ */
+function parseAmount(amountStr) {
+  if (!amountStr) return 0;
+  const cleaned = String(amountStr).replace(/[, \s 万元]/g, '');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+/**
+ * 辅助清洗工具方法（格式化输出）
+ */
+function formatAmount(num) {
+  return `${num.toFixed(2)}万元`;
+}
+
+
 
 /**
  * 带全量诊断日志版：1,2,3,4,5全层级拓扑布局主控器
@@ -214,15 +366,13 @@ function layoutFourLevelsAndGetNewHeight(nodesByLevel, defaultCanvasHeight) {
   return idealCanvasHeight;
 }
 
-
-
 /**
  * 纯动态几何推导：根据原始层级列表数据，全量自动生成带有精准对齐坐标和桩位的节点与边数据
  * @param {Array} response 原始输入数组（全动态自适应）
  * @param {Object} options 间距微调配置项（可选）
  * @returns {Object} { NODE_DATA, EDGE_DATA }
  */
-export function transformListToAlignedTopology(response, containerDOM, options = {}) {
+export function transformListToAlignedTopology(rawData, containerDOM, options = {}) {
   const canvasWidth = containerDOM ? containerDOM.clientWidth : 1200; 
   const canvasHeight = containerDOM ? containerDOM.clientHeight : 600;
   // 2. 严格按照画布总宽度的百分比/比例系数划分
@@ -250,6 +400,9 @@ export function transformListToAlignedTopology(response, containerDOM, options =
   // 3. 动态读取结构，按层级划分并初始化各节点的默认宽高及类型
   const nodeMap = {};
   const nodesByLevel = { 1: [], 2: [], 3: [], 4: [], 5: [] };
+
+  const response = processRawResponse(rawData)
+  console.log("######",response)
 
   response.forEach(item => {
     let width = 110, height = 44;
