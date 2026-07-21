@@ -14,7 +14,8 @@ export default {
     return {
       graph: null,
       NODE_DATA:[],
-      EDGE_DATA:[]
+      EDGE_DATA:[],
+      screenHeight: 300,
     }
   },
   mounted() {
@@ -50,7 +51,7 @@ export default {
       })
     },
 
-    getNodeStyleStrategy(node, ) {
+    getNodeStyleStrategy(node) {
       const arrowAttrs = {
         'arrow-track-0': {
           d: 'M 10 6 L 2 11 L 5 6 L 2 1 Z', 
@@ -384,9 +385,10 @@ export default {
     },
     renderChart() {
       if (!this.graph) return
-      const { NODE_DATA, EDGE_DATA } = transformListToAlignedTopology(response, this.$refs.container)
+      const { NODE_DATA, EDGE_DATA,finalCanvalHeight } = transformListToAlignedTopology(response, this.$refs.container)
       this.NODE_DATA = NODE_DATA
       this.EDGE_DATA = EDGE_DATA
+      this.screenHeight = finalCanvalHeight
       // 1. 批量渲染带有内置 Port 信息的节点
       this.NODE_DATA.forEach(node => {
         const { id, x, y, width, height, ports } = node
@@ -399,11 +401,14 @@ export default {
         this.drawEdge(edge)
       })
       this.renderAllLevel4Arrows()
+      this.handleResize()
     },
 
     handleResize() {
       if (this.graph) {
-        this.graph.resize(this.$refs.container.clientWidth, this.$refs.container.clientHeight)
+        this.$refs.container.style.height = `${this.screenHeight}px`;
+        this.graph.resize(this.$refs.container.clientWidth, this.screenHeight)
+        this.graph.centerContent();
       }
     }
   }
@@ -413,14 +418,14 @@ export default {
 <style scoped>
 .x6-chart-container {
   width: 100%;
-  height: 50vh;
-  min-height: 600px;
+  height: auto; 
+  min-height: 300px;
   background-color: #f8fafc;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
 }
 .x6-canvas {
   width: 100%;
-  height: 100%;
+  height: 100%; 
 }
 </style>

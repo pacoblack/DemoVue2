@@ -72,73 +72,148 @@ export const response = [
 ];
 
 /**
- * 🌟 终极通用版：以画布高度为范围，严格以 L2 为中轴向上下两侧完美、均匀分布（含宽高等比例缩小兜底）
- * @param {Array} nodesSingleLevel - 当前层级（例如所有 level 1 或所有 level 4）的节点数组
- * @param {number} l2CenterY       - L2 (中心卡片) 的绝对几何中心 Y 坐标 (targetNode.y + height/2)
- * @param {number} canvasHeight    - 画布的总可用高度
- * @param {number} minGap          - 允许的垂直最小安全隔离间距（像素兜底，默认 20）
+ * 带全量诊断日志版：1,2,3,4,5全层级拓扑布局主控器
  */
-function calculateGenericLevelYWithScale(nodesSingleLevel, l2CenterY, canvasHeight, minGap = 20) {
-  const nodes = nodesSingleLevel || [];
-  const count = nodes.length;
-  if (count === 0) return;
+function layoutFourLevelsAndGetNewHeight(nodesByLevel, defaultCanvasHeight) {
+  const minGap = 24; 
+  const baseScreenHeight = defaultCanvasHeight;
+  const screenCenter = baseScreenHeight / 2;
 
-  // 💡 1. 设定全画布的最大边界安全防线（保留上下各 40px 的绝对边缘视口隔离带）
-  const maxAllowedHeight = canvasHeight - 80;
-
-  // 💡 2. 统计在不缩放状态下，该层所有卡片自身的物理高度绝对总和
-  let totalNodeHeight = 0;
-  nodes.forEach(node => { totalNodeHeight += node.height; });
-
-  let currentGap = minGap;
-  let scaleFactor = 1.0;
-
-  if (count === 1) {
-    // 🌟 特殊兜底：单节点直接死死钉在 L2 的中轴线上
-    nodes[0].y = Math.round(l2CenterY - nodes[0].height / 2);
-    return;
+  // ==================== 🎯 1. 核心轴承：定死中央第 2 级（上海申通地铁） ====================
+  const level2Nodes = nodesByLevel[2] || [];
+  let level2Node = null
+  if (level2Nodes.length > 0) {
+    level2Node = level2Nodes[0]
+    // 强制将唯一的中央核心卡片钉在屏幕视口的绝对正中心
+    level2Nodes[0].y = Math.round(screenCenter - level2Nodes[0].height / 2);
   }
+  // 获得雷打不动的绝对中心轴
+  const mainCenterY = level2Nodes[0] ? (level2Nodes[0].y + level2Nodes[0].height / 2) : screenCenter;
 
-  // 💡 3. 计算弹性可用剩余空白间距总额
-  const availableSurplusSpace = maxAllowedHeight - totalNodeHeight;
-  const gapCount = count - 1;
-
-  // 💡 4. 核心空间平分调度决策器
-  if (availableSurplusSpace >= gapCount * minGap) {
-    // 🟢 情况 A（空间极度宽裕，2-5个节点动态铺满全场）：
-    // 弹性空白空间极其充沛，直接完美、均匀地把整个画布的高度平摊给各个间距，不缩放宽高！
-    currentGap = availableSurplusSpace / gapCount;
-  } else {
-    // 🔴 情况 B（节点暴增，产生极限挤压或重叠）：
-    // 连最小的 minGap 都放不下了！瞬间触发宽高和间距的全局等比例缩小保护网！
-    const idealTotalHeight = totalNodeHeight + (gapCount * minGap); // 理想总高度
-    scaleFactor = maxAllowedHeight / idealTotalHeight;
-    
-    // 限制过度压扁：最小允许缩到原本的 0.5 倍
-    scaleFactor = Math.max(scaleFactor, 0.5);
-    currentGap = minGap * scaleFactor;
-
-    nodes.forEach(node => {
-      // 宽高同步压缩
-      node.width = Math.round(node.width * scaleFactor);
-      node.height = Math.round(node.height * scaleFactor);
-    });
-  }
-
-  // 💡 5. 重新统计处理后的全层节点最终物理总占用高度
-  let finalTotalHeight = 0;
-  nodes.forEach(node => { finalTotalHeight += node.height; });
-  finalTotalHeight += (count - 1) * currentGap;
-
-  // 🌟 6. 以 L2 中心 Y 坐标为终极天平，向上下两侧完美对称铺设 Y 坐标，达成 100% 垂直等高对称
-  let currentY = l2CenterY - (finalTotalHeight / 2);
-
-  nodes.forEach(node => {
-    node.y = Math.round(currentY);
-    // 指针向下平滑推进
-    currentY += node.height + currentGap;
+  // ==================== ➡️ 2. 向右侧发散：5 ➔ 4 ➔ 3 级逆向由右向左级联看齐 ====================
+  // 先把最右侧最庞大的第 5 级（叶子卡片）顺序线性平铺
+  let tempY = 0;
+  const level5Nodes = nodesByLevel[5] || [];
+  level5Nodes.forEach(node => {
+    node.y = tempY;
+    tempY += node.height + minGap;
   });
+
+  const l5Top = level5Nodes[0] ? level5Nodes[0].y : 0;
+  const l5Bottom = level5Nodes[level5Nodes.length - 1] ? (level5Nodes[level5Nodes.length - 1].y + level5Nodes[level5Nodes.length - 1].height) : 0;
+  const l5Center = (l5Top + l5Bottom) / 2;
+
+  // 将第 5 级整体平移，使其中心轴和中央地铁的 mainCenterY 绝对完美重合
+  const deltaY = mainCenterY - l5Center;
+  level5Nodes.forEach(node => { node.y = Math.round(node.y + deltaY); });
+
+  // 逆向推动右侧的 4 级和 3 级（父随子动模型，精确定位中建八局、三局、21号线等）
+  const rightReverseLevels =[4, 3]; 
+  rightReverseLevels.forEach(currentLevel => {
+    const parentList = nodesByLevel[currentLevel] || [];
+    parentList.forEach(parentNode => {
+      const childNodes = parentNode.children || [];
+      if (childNodes.length === 1) {
+        const singleChild = childNodes[0];
+        const childCenterY = singleChild.y + (singleChild.height / 2);
+        parentNode.y = Math.round(childCenterY - parentNode.height / 2);
+      } else if (childNodes.length > 1) {
+        let sumChildCenters = 0;
+        childNodes.forEach(child => { sumChildCenters += child.y + (child.height / 2); });
+        parentNode.y = Math.round((sumChildCenters / childNodes.length) - parentNode.height / 2);
+      } else {
+        parentNode.y = Math.round(mainCenterY - parentNode.height / 2);
+      }
+    });
+  });
+
+   // 💡 1. 此时 3 级（崇明线、21号线）的坐标已经根据右侧完美算好了。我们直接量取 3 级真实的公共视觉中心！
+  const level3Nodes = nodesByLevel[3] || [];
+  
+  if (level3Nodes.length > 0) {
+    let sumL3Centers = 0;
+    level3Nodes.forEach(node => { sumL3Centers += node.y + (node.height / 2); });
+    
+    // 🌟 这才是整张图在经历右侧节点暴增膨胀后，右侧世界真正、唯一的【黄金中轴线】！
+    const realRightCenterY = sumL3Centers / level3Nodes.length;
+
+    // 💡 2. 强力重写地铁（Level 2）的 Y 坐标，让它死死对准这个由于右侧膨胀而改变的真正中心！
+    if (level2Node) {
+      level2Node.y = Math.round(realRightCenterY - level2Node.height / 2);
+    }
+  }
+
+  // 💡 3. 二次更新核心全局中轴线，让接下来的 Level 1（左侧层）也能基于这个真正对齐的中心进行排铺
+  const updatedMainCenterY = level2Node ? (level2Node.y + level2Node.height / 2) : screenCenter;
+  // ==================== ⬅️ 3. 极简重构：最左侧第 1 级（资金资产层）绝对中心平铺 ====================
+  const level1Nodes = nodesByLevel[1] || [];
+  const l1Count = level1Nodes.length;
+
+  if (l1Count > 0) {
+    // 💡 1. 瞬间精算出第 1 级所有卡片加上间距后的总物理占用高度
+    let l1TotalHeight = 0;
+    level1Nodes.forEach((node, idx) => { 
+      l1TotalHeight += node.height; 
+      console.log(`   -> [Level 1 原始高度体检] 节点[${idx}] - ${node.label || node.name || '资产'}: height = ${node.height}px`);
+    });
+    // 加上间距高度
+    const totalGapsHeight = (l1Count - 1) * minGap;
+    l1TotalHeight += totalGapsHeight;
+
+    // 💡 2. 核心：以地铁的 mainCenterY 为纯粹的中轴天平，直接逆向算出第 1 级最顶部的起始 Y 坐标
+    let currentL1Y = updatedMainCenterY - (l1TotalHeight / 2);
+
+    // 💡 3. 从上到下，每次“平滑偏移固定距离”平铺赋予坐标
+    level1Nodes.forEach((node, idx) => {
+      node.y = Math.round(currentL1Y);
+      console.log(`   -> [Level 1 实时定序] 节点[${idx}] - ${node.label || node.name}: 赋予 y = ${node.y}px`);
+      currentL1Y += node.height + minGap;
+    });
+
+    // 验证赋完值后的几何中心
+    const finalL1Top = level1Nodes[0].y;
+    const finalL1Bottom = level1Nodes[l1Count - 1].y + level1Nodes[l1Count - 1].height;
+    console.log(`   -> [Level 1 居中校准] 平铺后最顶部 y = ${finalL1Top}px, 最底部 y = ${finalL1Bottom}px, 算出的实际视觉中心点: ${(finalL1Top + finalL1Bottom) / 2}px (应该严格等于 mainCenterY: ${mainCenterY}px)`);
+  }
+
+  let minY = null;
+  let maxY = null;
+  const allLevels =[1,2,3,4,5];
+
+  allLevels.forEach(level => {
+    (nodesByLevel[level] || []).forEach(node => {
+      if (minY === null || node.y < minY) minY = node.y;
+      if (maxY === null || (node.y + node.height) > maxY) maxY = node.y + node.height;
+    });
+  });
+
+  const padding = 50;
+
+  if (minY === null || maxY === null) return baseScreenHeight;
+
+  // 天花板安全红线校验（若数量暴增整体平移避让）
+  if (minY < padding) {
+    const driftY = padding - minY;
+
+    allLevels.forEach(level => {
+      (nodesByLevel[level] || []).forEach(node => { 
+        node.y += driftY; 
+      });
+    });
+    
+    // 平移后重新核对 Level 1 和 Level 2 的对齐情况
+    const debugL1Center = (nodesByLevel[1][0].y + nodesByLevel[1][nodesByLevel[1].length - 1].y + nodesByLevel[1][nodesByLevel[1].length - 1].height) / 2;
+    const debugL2Center = nodesByLevel[2][0].y + (nodesByLevel[2][0].height / 2);
+    console.log(`   -> [平移后二次核对] Level 1 搬迁后的新视觉中心: ${debugL1Center}px, 地铁(Level 2) 搬迁后的新中心: ${debugL2Center}px (两者如果不相等，说明数据在内存中被其他未知逻辑污染)`);
+    
+    maxY += driftY;
+  }
+
+  // 返回自适应拉伸后的最佳高度
+  const idealCanvasHeight = Math.max(maxY + padding, baseScreenHeight);
+  return idealCanvasHeight;
 }
+
 
 
 /**
@@ -150,7 +225,6 @@ function calculateGenericLevelYWithScale(nodesSingleLevel, l2CenterY, canvasHeig
 export function transformListToAlignedTopology(response, containerDOM, options = {}) {
   const canvasWidth = containerDOM ? containerDOM.clientWidth : 1200; 
   const canvasHeight = containerDOM ? containerDOM.clientHeight : 600;
-
   // 2. 严格按照画布总宽度的百分比/比例系数划分
   const widthRatios = {
     1: options.ratio1 || 0.08,  // 第一级：占画布总宽 8%
@@ -194,7 +268,8 @@ export function transformListToAlignedTopology(response, containerDOM, options =
       height = item.retainedAmount ? 54 : 44; 
       type = 'target-card';
     } else if (item.level === 5) {
-      width = 10; height = 20;
+      width = 10; 
+      height = 20;
     }
 
     nodeMap[item.id] = {
@@ -228,64 +303,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
     }
   });
 
-
-  // ==================== 一、Y 坐标核心动态几何推导 ====================
-  // 【3】反向确定第 2 层（核心主体）的 Y 坐标
-  nodesByLevel[2].forEach(l2Node => {
-    l2Node.y = config.canvasCenterY - (l2Node.height / 2);
-  });
-
-  nodesByLevel[1].forEach(node => { node.type = 'source-node'; }); // 统一更名为 source-node
-  calculateGenericLevelYWithScale(nodesByLevel[1],nodesByLevel[2][0].y, canvasHeight, 20);
-
-  // 【1】确立核心主干线路的垂直中心线
-  const level3Nodes = nodesByLevel[3];
-  level3Nodes.forEach((l3Node, index) => {
-    const mainBranchCenterY = config.canvasCenterY - ((level3Nodes.length - 1) * config.branchGap / 2) + (index * config.branchGap);
-    l3Node.y = mainBranchCenterY - (l3Node.height / 2);
-
-    const l4Children = l3Node.children.filter(c => c.level === 4);
-    if (l4Children.length > 0) {
-      const mainL4 = l4Children[0];
-      mainL4.y = mainBranchCenterY - (mainL4.height / 2);
-
-      if (l4Children.length > 1) {
-        for (let i = 1; i < l4Children.length; i++) {
-          l4Children[i].y = l4Children[i - 1].y + l4Children[i - 1].height + 51;
-        }
-      }
-    }
-  });
-
-  // 【2】全动态“垂直居中对称”推导第 5 层叶子节点的 Y 坐标
-  nodesByLevel[4].forEach(l4Node => {
-    const leaves = l4Node.children.filter(c => c.level === 5);
-    if (leaves.length === 0) return;
-
-    const parentCenterY = l4Node.y + (l4Node.height / 2);
-    const totalLeavesHeight = (leaves.length - 1) * config.leafGap;
-    
-    let startY = parentCenterY - (totalLeavesHeight / 2) - (leaves[0].height / 2);
-
-    leaves.forEach(leaf => {
-      leaf.y = startY;
-      startY += config.leafGap; 
-    });
-  });
-
-  // 【3】反向确定第 2 层（核心主体）的 Y 坐标
-  nodesByLevel[2].forEach(l2Node => {
-    l2Node.y = config.canvasCenterY - (l2Node.height / 2);
-  });
-
-  // 【4】反向确定第 1 层（资金来源）的 Y 坐标
-  const level1Nodes = nodesByLevel[1];
-  const mainL2Node = nodesByLevel[2][0];
-  if (mainL2Node && level1Nodes.length >= 2) {
-    level1Nodes[0].y = mainL2Node.y - 60;
-    level1Nodes[1].y = mainL2Node.y + mainL2Node.height + 20;
-  }
-
+  const finalCanvalHeight = layoutFourLevelsAndGetNewHeight(nodesByLevel, canvasHeight);
 
   // ==================== 二、结构体全自动化组装 ====================
 
@@ -428,7 +446,7 @@ export function transformListToAlignedTopology(response, containerDOM, options =
       colorTotal: setArray.length
     };
   })
-  return { NODE_DATA, EDGE_DATA };
+  return { NODE_DATA, EDGE_DATA,finalCanvalHeight };
 }
 
 
