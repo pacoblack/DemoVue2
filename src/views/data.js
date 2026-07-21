@@ -50,10 +50,10 @@ export const response = [
     // ---- 第三层：项目线路 ----
     { "id": "line_cm", "name": "崇明线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "2700.00万元" },
     { "id": "line_21", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
-    { "id": "line_22", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
-    { "id": "line_23", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
-    { "id": "line_24", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
-     { "id": "line_25", "name": "21号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
+    { "id": "line_22", "name": "22号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
+    { "id": "line_23", "name": "23号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
+    { "id": "line_24", "name": "24号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
+     { "id": "line_25", "name": "25号线", "level": 3, "source": ["zxj", 'czbk'], "parent": "st_subway", "inflowAmount": "1000.00万元" },
 
     // ---- 第四层：建设单位 ----
     { "id": "bj_8", "name": "中建八局", "level": 4, "source": ["zxj", 'czbk'], "parent": "line_cm", "retainedAmount": "1000万元", "inflowAmount": "500.00万元" },
@@ -160,7 +160,7 @@ function processRawResponse(rawResponse) {
         if (Array.isArray(child.source)) {
           child.source.forEach(src => summary.sourceSet.add(src));
         }
-
+        
         // 🌟 核心修改：针对第 5 个及以后的直系孩子，也同步提炼这 3 个核心字段放入明细中
         summary.mergedList.push({
           name: child.name || '',
@@ -173,7 +173,7 @@ function processRawResponse(rawResponse) {
       });
 
       // 🧱 5. 严格按照业务规范与您的最新诉求，创建全新的合并省略号卡片对象
-      const omitNode = {
+        const omitNode = {
         id: `${parentId}_child`,                     // 规范 1：id 强制改为 parent_child 格式
         name: '...',                                 // 规范 2：name 强行变更为 "..."
         level: childLevel,                           // 规范 3：level 为子节点 level
@@ -236,14 +236,11 @@ function layoutFourLevelsAndGetNewHeight(nodesByLevel, defaultCanvasHeight) {
   let level2Node = null
   if (level2Nodes.length > 0) {
     level2Node = level2Nodes[0]
-    // 强制将唯一的中央核心卡片钉在屏幕视口的绝对正中心
     level2Nodes[0].y = Math.round(screenCenter - level2Nodes[0].height / 2);
   }
-  // 获得雷打不动的绝对中心轴
   const mainCenterY = level2Nodes[0] ? (level2Nodes[0].y + level2Nodes[0].height / 2) : screenCenter;
 
-  // ==================== ➡️ 2. 向右侧发散：5 ➔ 4 ➔ 3 级逆向由右向左级联看齐 ====================
-  // 先把最右侧最庞大的第 5 级（叶子卡片）顺序线性平铺
+  // ==================== ➡️ 2. 向右侧发散：5 ➔ 4 ➔ 3 级逆向看齐 ====================
   let tempY = 0;
   const level5Nodes = nodesByLevel[5] || [];
   level5Nodes.forEach(node => {
@@ -255,16 +252,31 @@ function layoutFourLevelsAndGetNewHeight(nodesByLevel, defaultCanvasHeight) {
   const l5Bottom = level5Nodes[level5Nodes.length - 1] ? (level5Nodes[level5Nodes.length - 1].y + level5Nodes[level5Nodes.length - 1].height) : 0;
   const l5Center = (l5Top + l5Bottom) / 2;
 
-  // 将第 5 级整体平移，使其中心轴和中央地铁的 mainCenterY 绝对完美重合
   const deltaY = mainCenterY - l5Center;
   level5Nodes.forEach(node => { node.y = Math.round(node.y + deltaY); });
 
-  // 逆向推动右侧的 4 级和 3 级（父随子动模型，精确定位中建八局、三局、21号线等）
-  const rightReverseLevels =[4, 3]; 
+  const rightReverseLevels =[4,3]; 
   rightReverseLevels.forEach(currentLevel => {
     const parentList = nodesByLevel[currentLevel] || [];
+    
+    // 💡 建立两个独立的队列，防止混合挤压
+    const normalParents = [];
+    const isolatedParents = [];
+    
     parentList.forEach(parentNode => {
       const childNodes = parentNode.children || [];
+      if (childNodes.length > 0) {
+        normalParents.push(parentNode);
+      } else {
+        isolatedParents.push(parentNode);
+      }
+    });
+
+    let maxNormalBottomY = null;
+
+    // 🔷 A. 正常节点分配（咬住右侧，拉直单线）
+    normalParents.forEach(parentNode => {
+      const childNodes = parentNode.children;
       if (childNodes.length === 1) {
         const singleChild = childNodes[0];
         const childCenterY = singleChild.y + (singleChild.height / 2);
@@ -273,61 +285,78 @@ function layoutFourLevelsAndGetNewHeight(nodesByLevel, defaultCanvasHeight) {
         let sumChildCenters = 0;
         childNodes.forEach(child => { sumChildCenters += child.y + (child.height / 2); });
         parentNode.y = Math.round((sumChildCenters / childNodes.length) - parentNode.height / 2);
-      } else {
-        parentNode.y = Math.round(mainCenterY - parentNode.height / 2);
+      }
+      const currentBottomY = parentNode.y + parentNode.height;
+      if (maxNormalBottomY === null || currentBottomY > maxNormalBottomY) {
+        maxNormalBottomY = currentBottomY;
       }
     });
+
+    // 🔶 B. 孤立节点分配：平铺排开
+    if (isolatedParents.length > 0) {
+      let currentIsolatedY = maxNormalBottomY !== null ? (maxNormalBottomY + minGap) : (mainCenterY - 22);
+      isolatedParents.forEach(node => {
+        node.y = Math.round(currentIsolatedY);
+        currentIsolatedY += node.height + minGap;
+      });
+    }
+
+    // ==================== 🌟 ✨ 【核心巨献：当前层级绝对防重叠弹开雷达】 ====================
+    // 💡 哪怕上面因为极其复杂的父子绑定导致某些卡片算到了相同的 y，在这里都会被硬生生一脚踹开！
+    if (parentList.length > 1) {
+      // 1. 先把当前层的所有卡片，按照算出来的 y 坐标从小到大升序排列
+      parentList.sort((a, b) => a.y - b.y);
+      
+      // 2. 像雷达扫描一样，从上往下挨个检查两两之间的物理距离
+      for (let i = 0; i < parentList.length - 1; i++) {
+        const currentNode = parentList[i];
+        const nextNode = parentList[i + 1];
+        
+        // 算出当前卡片的底部边缘
+        const currentBottom = currentNode.y + currentNode.height;
+        
+        // 🔒 触发碰撞拦截：如果下一个卡片的顶部，贴得太近或者已经盖在了当前卡片上面
+        if (nextNode.y < (currentBottom + minGap)) {
+          // 强行把下一个卡片的 y 坐标向推，留下完美的 minGap 像素隔离带！
+          nextNode.y = Math.round(currentBottom + minGap);
+        }
+      }
+    }
+    // ===================================================================================
   });
 
-   // 💡 1. 此时 3 级（崇明线、21号线）的坐标已经根据右侧完美算好了。我们直接量取 3 级真实的公共视觉中心！
+  // 💡 1. 二次校准 3 级真实公共中心
   const level3Nodes = nodesByLevel[3] || [];
-  
   if (level3Nodes.length > 0) {
     let sumL3Centers = 0;
     level3Nodes.forEach(node => { sumL3Centers += node.y + (node.height / 2); });
-    
-    // 🌟 这才是整张图在经历右侧节点暴增膨胀后，右侧世界真正、唯一的【黄金中轴线】！
     const realRightCenterY = sumL3Centers / level3Nodes.length;
 
-    // 💡 2. 强力重写地铁（Level 2）的 Y 坐标，让它死死对准这个由于右侧膨胀而改变的真正中心！
     if (level2Node) {
       level2Node.y = Math.round(realRightCenterY - level2Node.height / 2);
     }
   }
 
-  // 💡 3. 二次更新核心全局中轴线，让接下来的 Level 1（左侧层）也能基于这个真正对齐的中心进行排铺
+  // 💡 2. 更新中轴线
   const updatedMainCenterY = level2Node ? (level2Node.y + level2Node.height / 2) : screenCenter;
-  // ==================== ⬅️ 3. 极简重构：最左侧第 1 级（资金资产层）绝对中心平铺 ====================
+
+  // ==================== ⬅️ 3. 最左侧第 1 级（资金资产层）绝对中心平铺 ====================
   const level1Nodes = nodesByLevel[1] || [];
   const l1Count = level1Nodes.length;
 
   if (l1Count > 0) {
-    // 💡 1. 瞬间精算出第 1 级所有卡片加上间距后的总物理占用高度
     let l1TotalHeight = 0;
-    level1Nodes.forEach((node, idx) => { 
-      l1TotalHeight += node.height; 
-      console.log(`   -> [Level 1 原始高度体检] 节点[${idx}] - ${node.label || node.name || '资产'}: height = ${node.height}px`);
-    });
-    // 加上间距高度
-    const totalGapsHeight = (l1Count - 1) * minGap;
-    l1TotalHeight += totalGapsHeight;
+    level1Nodes.forEach(node => { l1TotalHeight += node.height; });
+    l1TotalHeight += (l1Count - 1) * minGap;
 
-    // 💡 2. 核心：以地铁的 mainCenterY 为纯粹的中轴天平，直接逆向算出第 1 级最顶部的起始 Y 坐标
     let currentL1Y = updatedMainCenterY - (l1TotalHeight / 2);
-
-    // 💡 3. 从上到下，每次“平滑偏移固定距离”平铺赋予坐标
-    level1Nodes.forEach((node, idx) => {
+    level1Nodes.forEach(node => {
       node.y = Math.round(currentL1Y);
-      console.log(`   -> [Level 1 实时定序] 节点[${idx}] - ${node.label || node.name}: 赋予 y = ${node.y}px`);
       currentL1Y += node.height + minGap;
     });
-
-    // 验证赋完值后的几何中心
-    const finalL1Top = level1Nodes[0].y;
-    const finalL1Bottom = level1Nodes[l1Count - 1].y + level1Nodes[l1Count - 1].height;
-    console.log(`   -> [Level 1 居中校准] 平铺后最顶部 y = ${finalL1Top}px, 最底部 y = ${finalL1Bottom}px, 算出的实际视觉中心点: ${(finalL1Top + finalL1Bottom) / 2}px (应该严格等于 mainCenterY: ${mainCenterY}px)`);
   }
 
+  // ==================== 🛡️ 4. 全局安全防溢出体检与画布等高撑开 ====================
   let minY = null;
   let maxY = null;
   const allLevels =[1,2,3,4,5];
@@ -340,31 +369,19 @@ function layoutFourLevelsAndGetNewHeight(nodesByLevel, defaultCanvasHeight) {
   });
 
   const padding = 50;
-
   if (minY === null || maxY === null) return baseScreenHeight;
 
-  // 天花板安全红线校验（若数量暴增整体平移避让）
   if (minY < padding) {
     const driftY = padding - minY;
-
     allLevels.forEach(level => {
-      (nodesByLevel[level] || []).forEach(node => { 
-        node.y += driftY; 
-      });
+      (nodesByLevel[level] || []).forEach(node => { node.y += driftY; });
     });
-    
-    // 平移后重新核对 Level 1 和 Level 2 的对齐情况
-    const debugL1Center = (nodesByLevel[1][0].y + nodesByLevel[1][nodesByLevel[1].length - 1].y + nodesByLevel[1][nodesByLevel[1].length - 1].height) / 2;
-    const debugL2Center = nodesByLevel[2][0].y + (nodesByLevel[2][0].height / 2);
-    console.log(`   -> [平移后二次核对] Level 1 搬迁后的新视觉中心: ${debugL1Center}px, 地铁(Level 2) 搬迁后的新中心: ${debugL2Center}px (两者如果不相等，说明数据在内存中被其他未知逻辑污染)`);
-    
     maxY += driftY;
   }
 
-  // 返回自适应拉伸后的最佳高度
-  const idealCanvasHeight = Math.max(maxY + padding, baseScreenHeight);
-  return idealCanvasHeight;
+  return Math.max(maxY + padding, baseScreenHeight);
 }
+
 
 /**
  * 纯动态几何推导：根据原始层级列表数据，全量自动生成带有精准对齐坐标和桩位的节点与边数据
@@ -401,6 +418,7 @@ export function transformListToAlignedTopology(rawData, containerDOM, options = 
   const nodeMap = {};
   const nodesByLevel = { 1: [], 2: [], 3: [], 4: [], 5: [] };
 
+  console.log("###### rawData",rawData)
   const response = processRawResponse(rawData)
   console.log("######",response)
 
