@@ -84,124 +84,148 @@ export const response = [
     { "id": "y_yg", "name": "员工", "level": 5, "source": ["zxj"], "parent": "bj_3", "inflowAmount": "100.00万元" },
     { "id": "y_g", "name": "农民工", "level": 5, "source": ["zxj"], "parent": "bj_3", "inflowAmount": "100.00万元" }
 ];
-/**
- * 递归资产包搜集器：自下而上递归搜集并提炼所有被隐藏合并的子孙节点明细与金额
- * @param {string} targetId 当前被截断/吞并的节点 ID
- * @param {Array} rawResponse 原始的数据列表
- * @param {Object} summary 用于存储累加结果与提炼列表的容器对象
- */
-function accumulateDescendants(targetId, rawResponse, summary) {
-  // 找出当前节点名下的所有直系孩子
-  const children = rawResponse.filter(item => item.parent === targetId);
-  
-  children.forEach(child => {
-    // 1. 累加数值金额
-    summary.inflow += parseAmount(child.inflowAmount);
-    summary.retained += parseAmount(child.retainedAmount);
-    
-    // 2. 合并并集 source 链
-    if (Array.isArray(child.source)) {
-      child.source.forEach(src => summary.sourceSet.add(src));
-    }
-    
-    // 🌟 3. 核心修改：提炼业务指定的 3 个核心字段，塞入隐藏明细列表
-    summary.mergedList.push({
-      name: child.name || '',
-      retainedAmount: child.retainedAmount || null,
-      inflowAmount: child.inflowAmount || null
-    });
-    
-    // 4. 递归向下穿透，把更深层的孙子、曾孙节点的资产包一并以提炼后的格式收缴上来
-    accumulateDescendants(child.id, rawResponse, summary);
-  });
-}
 
 /**
- * 原始 Response 极简递归合并裁剪拦截器
- * @param {Array} rawResponse 你的原始接口数据 response 列表
- * @return {Array} 直接返回加工处理完、最大长度受限的全新一维 response 数组
+ * 核心优化版：树状递归合并裁剪拦截器
+ * @param {Array} rawResponse 原始接口一维数组
+ * @return {Array} 处理后的一维数组
  */
 function processRawResponse(rawResponse) {
   if (!Array.isArray(rawResponse)) return [];
 
-  // 1. 提取所有不需要进行子节点数量检查的根节点（Level 1）作为初始化骨架
-  let resultList = rawResponse.filter(item => !item.parent);
+  // 1. 建立节点映射与完整的父子树状关系
+  const nodeMap = {};
+  rawResponse.forEach(item => {
+    nodeMap[item.id] = { ...item, _children: [] };
+  });
 
-  // 2. 找出全图所有“充当过父亲”的节点 ID 集合
-  const allParentIds = Array.from(new Set(rawResponse.filter(item => item.parent).map(item => item.parent)));
-
-  // 3. 核心：遍历每一个相同的父节点，对其名下的子节点分组进行 5 个的限额拦截
-  allParentIds.forEach(parentId => {
-    // 筛出当前父亲名下的所有孩子节点
-    const groupChildren = rawResponse.filter(item => item.parent === parentId);
-    
-    if (groupChildren.length <= 5) {
-      // 🟢 情况 A：当前父亲名下的子节点不超过 5 个，全员无损直接录入最终列表
-      resultList.push(...groupChildren);
+  const roots = [];
+  rawResponse.forEach(item => {
+    const node = nodeMap[item.id];
+    if (node.parent && nodeMap[node.parent]) {
+      nodeMap[node.parent]._children.push(node);
     } else {
-      // 🔴 情况 B：超过 5 个，触发局部精细化深度递归合并熔断
-      const realChildren = groupChildren.slice(0, 4);    // 前 4 个亲生卡片保持原样展示
-      const excessNodes = groupChildren.slice(4);     // 第 5 个及往后的卡片全部拿出来合并销毁
+      roots.push(node);
+    }
+  });
 
-      const childLevel = groupChildren[0] ? groupChildren[0].level : 1; // 继承子节点的统一 level
+  // 最终展平输出的一维结果集
+  const finalResultList = [];
 
-      // 初始化当前父节点本组的资产合并累加器
+  /**
+   * 递归处理函数
+   * @param {Array} nodeList 当前需要处理的一组兄弟节点
+   * @param {string|null} forcedParentId 如果上级被合并了，下级被迫继承的父级 ID（即您提到的 E 的 ID）
+   * @param {boolean} shouldForceOmit 当前这一组节点是否是因为“父辈被合并”而必须全员合并为 `...`
+   */
+  function recurseAndTruncate(nodeList, forcedParentId = null, shouldForceOmit = false) {
+    if (!nodeList || nodeList.length === 0) return;
+
+    // 更新当前层所有节点的 parent 指向（如果上级发生了合并变更）
+    if (forcedParentId) {
+      nodeList.forEach(n => { n.parent = forcedParentId; });
+    }
+
+    // 分流处理：是触发了“数量超限合并”或“父辈连带合并”，还是正常保留？
+    const triggerOmit = shouldForceOmit || nodeList.length > 5;
+
+    if (!triggerOmit) {
+      // 🟢 情况 A：正常情况，全员保留，继续向下递归各自的子节点
+      nodeList.forEach(node => {
+        finalResultList.push(node);
+        if (node._children && node._children.length > 0) {
+          recurseAndTruncate(node._children, null, false);
+        }
+      });
+    } else {
+      // 🔴 情况 B：需要合并（可能是兄弟超过5个，也可能是父辈变成了 `...` 连带下来的）
+      let realChildren = [];
+      let excessNodes = [];
+
+      if (shouldForceOmit) {
+        // 如果是由于父辈合并连带的，这层的所有节点全部属于“超额”，直接全量合并
+        excessNodes = nodeList;
+      } else {
+        // 如果是自身兄弟超过5个触发的，保留前 4 个，剩下的合并
+        realChildren = nodeList.slice(0, 4);
+        excessNodes = nodeList.slice(4);
+      }
+
+      // 1. 先把保留的 4 个亲生卡片放进去，并继续正常递归它们自己的子孙
+      realChildren.forEach(node => {
+        finalResultList.push(node);
+        if (node._children && node._children.length > 0) {
+          recurseAndTruncate(node._children, null, false);
+        }
+      });
+
+      // 2. 开始收缴合并那些超额/连带的节点（E 节点本身）
+      const parentId = forcedParentId || nodeList[0].parent;
+      const childLevel = nodeList[0].level || 1;
+
       const summary = {
         inflow: 0,
         retained: 0,
         sourceSet: new Set(),
-        mergedList: [] // 提炼后的精简明细容器
+        mergedList: [],       // 存放当前层被吃掉的明细
+        allNextChildren: []   // 收集这些被吃掉节点的所有下一代子节点
       };
 
-      // 4. 遍历这批超额被截断的孩子，并利用递归函数把它们身后的【所有子孙节点】也一并吞并累加
       excessNodes.forEach(child => {
+        // 累加当前层数据
         summary.inflow += parseAmount(child.inflowAmount);
         summary.retained += parseAmount(child.retainedAmount);
         if (Array.isArray(child.source)) {
           child.source.forEach(src => summary.sourceSet.add(src));
         }
-        
-        // 🌟 核心修改：针对第 5 个及以后的直系孩子，也同步提炼这 3 个核心字段放入明细中
+
         summary.mergedList.push({
           name: child.name || '',
           retainedAmount: child.retainedAmount || null,
           inflowAmount: child.inflowAmount || null
         });
 
-        // 🚀 递归穿透：顺着当前超额卡片往下抓，把属于该分支的所有更深层子孙资产也提炼出来吃掉
-        accumulateDescendants(child.id, rawResponse, summary);
+        // 核心收集：把被吃掉的孩子名下的所有下一代直系子节点全部捞出来，准备喂给下一层的 `...`
+        if (child._children && child._children.length > 0) {
+          summary.allNextChildren.push(...child._children);
+        }
       });
 
-      // 🧱 5. 严格按照业务规范与您的最新诉求，创建全新的合并省略号卡片对象
-        const omitNode = {
-        id: `${parentId}_child`,                     // 规范 1：id 强制改为 parent_child 格式
-        name: '...',                                 // 规范 2：name 强行变更为 "..."
-        level: childLevel,                           // 规范 3：level 为子节点 level
-        parent: parentId,                            // 指向共同的亲生父亲
-        source: Array.from(summary.sourceSet),       // 规范 4：source 转换为合并去重后的并集数组
-        inflowAmount: formatAmount(summary.inflow),  // 规范 5：inflowAmount 为合并节点的求和
-        retainedAmount: summary.retained > 0 ? formatAmount(summary.retained) : null, // 规范 6：retainedAmount 求和
-        isOmitNode: true,                            // 注入省略号特殊样式标识
-        remainingNodes: summary.mergedList           // 🌟 规范 7：完美的提炼明细列表，专供 Tooltip 使用
+      // 3. 构建当前层的合并省略号卡片对象（即您说的 E 节点）
+      const omitNodeId = `${parentId}_child`;
+      const omitNode = {
+        id: omitNodeId,
+        name: '...',
+        level: childLevel,
+        parent: parentId,
+        source: Array.from(summary.sourceSet),
+        inflowAmount: formatAmount(summary.inflow),
+        retainedAmount: summary.retained > 0 ? formatAmount(summary.retained) : null,
+        isOmitNode: true,
+        remainingNodes: summary.mergedList
       };
 
-      // 6. 将处理完毕的【4个真实孩子】和【1个深度合并省略卡片】追加进结果列表
-      resultList.push(...realChildren, omitNode);
+      finalResultList.push(omitNode);
+
+      // 4. 🚀 关键跨代递归：如果这些被合并的节点名下还有子节点，强力向下递归
+      // 强制将它们下一代所有子节点的 parent 指向当前这个新生成的 E 节点 (omitNodeId)
+      // 并且强制设置 shouldForceOmit 为 true，确保它们在下一层也会乖乖合并成属于下一层的 `...`
+      if (summary.allNextChildren.length > 0) {
+        recurseAndTruncate(summary.allNextChildren, omitNodeId, true);
+      }
+    }
+  }
+
+  // 从根节点层（Level 1）开始递归清洗整棵树
+  recurseAndTruncate(roots, null, false);
+
+  finalResultList.forEach(node => {
+    if ('_children' in node) {
+      delete node._children;
     }
   });
 
-  // 7. 【终极安全防线】：由于上面的合并销毁了一批超额的子孙，我们需要过滤掉
-  // 任何 parent 字段指向了“已经被合并销毁的节点”的那些孤立幽灵子孙卡片，防止它们漏网重新上屏
-  const finalResponse = resultList.filter(node => {
-    if (node.parent && !node.parent.endsWith('_child')) {
-      const isParentStillAlive = resultList.some(r => r.id === node.parent);
-      if (!isParentStillAlive) return false; // 父亲已经合并销毁，幽灵节点不予通过
-    }
-    return true;
-  });
-
-  // 🌟 8. 干净利落，直接返回纯一维、加工完的全新数据列表
-  return finalResponse;
+  return finalResultList;
 }
 
 /**
@@ -492,7 +516,8 @@ export function transformListToAlignedTopology(rawData, containerDOM, options = 
       ports: defaultPorts ,
       parent: item.parent,
       level: item.level,
-      levelIndex: targetIndex
+      levelIndex: targetIndex,
+      remainingNodes: item.remainingNodes
     };
 
     if (cached.type) res.type = cached.type;

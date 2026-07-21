@@ -441,7 +441,7 @@ export default {
       this.NODE_DATA.forEach(node => {
         const { id, x, y, width, height, ports } = node
         const { markup, attrs } = this.getNodeStyleStrategy(node, width, height)
-        this.graph.addNode({ id, x, y, width, height, markup, attrs, ports,remainingNodes:[] })
+        this.graph.addNode({ id, x, y, width, height, markup, attrs, ports,remainingNodes:node.remainingNodes })
       })
 
       // 2. 批量进行标准连接桩连线
