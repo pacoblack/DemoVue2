@@ -1,6 +1,21 @@
 <template>
   <div class="x6-chart-container">
     <div ref="container" class="x6-canvas"></div>
+    <div 
+      v-show="tooltip.show" 
+      class="vue-x6-tooltip"
+      :style="{ left: tooltip.x + 'px', top: tooltip.y + 'px' }"
+    >
+      <template v-if="tooltip.data.remainingNodes && tooltip.data.remainingNodes.length > 0">
+        <div v-for="(subNode, idx) in tooltip.data.remainingNodes" :key="idx">
+          • {{ subNode.desc || subNode.name }}
+        </div>
+      </template>
+
+      <template v-else>
+        {{ tooltip.data.label }}
+      </template>
+    </div>
   </div>
 </template>
 
@@ -16,6 +31,12 @@ export default {
       NODE_DATA:[],
       EDGE_DATA:[],
       screenHeight: 300,
+      tooltip: {
+        show: false,
+        x: 0,
+        y: 0,
+        data: {}
+    }
     }
   },
   mounted() {
@@ -49,6 +70,33 @@ export default {
         zIndex: true, 
         sorting: 'exact', 
       })
+      this.graph.on('node:mouseenter', ({ node, e }) => {
+        const nodeData = node.store.data
+        // 只要有任何可显示的数据就触发开启
+        if (nodeData.remainingNodes && nodeData.remainingNodes.length > 0) {
+          this.tooltip.data = nodeData;
+        } else {
+          this.tooltip.data = {label: node.label};
+        }
+        const containerEl = this.$refs.container; 
+        const rect = containerEl.getBoundingClientRect();
+        this.tooltip.x = e.clientX - rect.left + 15; // 往右偏 15px 防止挡住鼠标
+        this.tooltip.y = e.clientY - rect.top + 15;
+        this.tooltip.show = true;
+      });
+
+      this.graph.on('node:mousemove', ({ e }) => {
+        if (this.tooltip.show) {
+          const containerEl = this.$refs.container; 
+          const rect = containerEl.getBoundingClientRect();
+          this.tooltip.x = e.clientX - rect.left + 15; // 往右偏 15px 防止挡住鼠标
+          this.tooltip.y = e.clientY - rect.top + 15;
+        }
+      });
+
+      this.graph.on('node:mouseleave', () => {
+        this.tooltip.show = false;
+      });
     },
 
     getNodeStyleStrategy(node) {
@@ -393,7 +441,7 @@ export default {
       this.NODE_DATA.forEach(node => {
         const { id, x, y, width, height, ports } = node
         const { markup, attrs } = this.getNodeStyleStrategy(node, width, height)
-        this.graph.addNode({ id, x, y, width, height, markup, attrs, ports })
+        this.graph.addNode({ id, x, y, width, height, markup, attrs, ports,remainingNodes:[] })
       })
 
       // 2. 批量进行标准连接桩连线
@@ -427,5 +475,18 @@ export default {
 .x6-canvas {
   width: 100%;
   height: 100%; 
+}
+.vue-x6-tooltip {
+  position: absolute;
+  background: rgba(15, 23, 42, 0.95);
+  color: #ffffff;
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+  z-index: 99999;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  max-width: 250px;
+  pointer-events: none; /* 💡 必须加，防止挡住鼠标 */
+  white-space: pre-line; /* 支持 desc 中的换行符展示 */
 }
 </style>
