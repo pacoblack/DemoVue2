@@ -229,26 +229,37 @@ export default {
           anchor: { 
             name: 'left', 
             args: { 
-              dy: currentOffset * bottomTarget
+              dy: currentOffset * bottomTarget // 定义线终止向上下的偏移
             } 
           },
           connectionPoint: {
             name: 'anchor',
             args: {
-          //     offset: { x: offsetX * bottomTarget } 
-              offset: { x: -10 } 
+              offset: { x: level==1 ? 0 : -10 }// 线终止的地方，正数时向右，负数时向左 
             }
           }
         }
         
-
-        // ==================== ✨ 1.32版本终极订正：两步法强控 0.3 处垂直折弯 ====================
         if (level > 1 && sourceNode && targetNode) {
           const startX = sourceNode.x + sourceNode.width;
           const endX = targetNode.x;
           const distanceX = endX - startX;
           
-          const forkX = startX + (distanceX * 0.3);
+          const forkX = startX + (distanceX * 0.3); //定义折线的地方
+          
+          const sourceY = sourceNode.y + sourceNode.height / 2;
+          const targetY = targetNode.y + targetNode.height / 2 + currentOffset;
+
+          forkVertices = [
+            { x: Math.round(forkX), y: Math.round(sourceY) },
+            { x: Math.round(forkX), y: Math.round(targetY) }
+          ];
+        } else if(level == 1 && sourceNode && targetNode) {
+          const startX = sourceNode.x + sourceNode.width;
+          const endX = targetNode.x;
+          const distanceX = endX - startX;
+          
+          const forkX = startX + (distanceX * 0.7); //定义折线的地方
           
           const sourceY = sourceNode.y + sourceNode.height / 2;
           const targetY = targetNode.y + targetNode.height / 2 + currentOffset;
@@ -263,18 +274,24 @@ export default {
       const labels = []
       if (labelText){
         let labelPositionConfig = labelPos || 0.65;
+        if (level === 1 && sourceNode && targetNode) {
+
+          labelPositionConfig = {
+            distance: 50, // 负数代表从【终点】向【起点】，正数代表从【起点】到【终点】
+          };
+        }
 
         if (level === 3 && sourceNode && targetNode) {
 
           labelPositionConfig = {
-            distance: -85, // 负数代表从【终点】向【起点】倒数 45 像素。可根据需要微调（如 -50, -40）
+            distance: -85, // 负数代表从【终点】向【起点】，正数代表从【起点】到【终点】
           };
         }
 
         if (level === 4 && sourceNode && targetNode) {
 
           labelPositionConfig = {
-            distance: -45, // 负数代表从【终点】向【起点】倒数 45 像素。可根据需要微调（如 -50, -40）
+            distance: -45, // 负数代表从【终点】向【起点】，正数代表从【起点】到【终点】
           };
         }
         labels.push({
@@ -285,7 +302,7 @@ export default {
           position: labelPositionConfig,
         })
       }
-      if (level === 1) {
+      if (level === 1) {//只有level==1的箭头是跟随线的
         labels.push({
           position: 1, // 1 代表连线的终点（0代表起点，0.5代表中间）
           options: {
@@ -301,7 +318,7 @@ export default {
             customArrow: {
               d: 'M 10 6 L 2 11 L 5 6 L 2 1 Z', 
               fill: color || '#3b82f6', 
-              // stroke: '#1e40af',             // 可定制：箭头边框颜色
+              // stroke: '#1e40af',  // 可定制：箭头边框颜色
               strokeWidth: 1,
               transform: 'scale(1, 1) translate(-10, -6)', 
             },
@@ -342,9 +359,8 @@ export default {
         }
       }
 
-      // 2. 判定如果起点的自定义属性里存有 0.3 处的转折顶点，立刻强行注入
+      // 2. 判定如果起点的自定义属性里存有转折顶点，立刻强行注入
       if (addedEdge && forkVertices) {
-        // 调用 1.x 版本最稳妥的动态顶点设置 API，强行掰正曼哈顿路由的分叉位置！
         addedEdge.setVertices(forkVertices) 
       }
     },
@@ -353,21 +369,14 @@ export default {
       const allNodes = this.graph.getNodes();
       
       allNodes.forEach(node => {
-        // 💡 过滤出第 4 级的文字卡片（根据你的业务属性来辨别，或者通过它的位置/ID前缀过滤）
-        // 假设你的第 4 级卡片数据的层级记录在 node.getData() 里，或者根据传入的 ID 区分：
-        // 这里我们判断：只要该节点有入线，并且属于我们想加箭头的右侧卡片
         const incomingEdges = this.graph.getIncomingEdges(node);
         
         if (incomingEdges && incomingEdges.length > 0) {
-          // 2. 🌟 绝妙之法：既然现在全场的线都已经渲染完毕，卡片可以直接清点有哪些线连向了自己！
-          // 我们按照颜色或者原先的局部序号，给这批入线排个队
           incomingEdges.forEach((edge, index) => {
             const edgeColor = edge.attr('line/stroke') || '#ff9900'; // 提取这条线的真实颜色
             
-            // 限制在 0-2 范围内（对齐卡片定义里 arrow-track-0, 1, 2 的占位符）
             const trackSelector = `arrow-track-${Math.min(index, 2)}`;
             
-            // 3. 🌟 顺理成章地点亮卡片身上自带的对应箭头插槽！
             node.prop(`attrs/${trackSelector}/fill`, edgeColor);
           });
         }
